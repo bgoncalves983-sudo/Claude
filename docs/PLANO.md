@@ -84,6 +84,24 @@ Custo estimado: para uma frota escolar, praticamente dentro dos planos gratuitos
 
 Alternativa: se preferirem uma BD relacional "clássica" (Postgres), usar Cloudflare Workers + Neon/Supabase. D1 é suficiente para este volume.
 
+## 4.1 Acesso e dispositivos (decisão: PWA)
+Em vez de apps nativas, a aplicação é uma **PWA** (site instalável), com um só código para Android, iOS e Windows. Sem lojas de apps, sem taxas e com atualizações imediatas.
+
+| Plataforma | Acesso |
+|---|---|
+| Windows (secretaria/gestor) | Chrome/Edge, com opção "Instalar" como app |
+| Android (instrutores) | Chrome → "Adicionar ao ecrã inicial" |
+| iPhone/iPad | Safari → Partilhar → "Adicionar ao ecrã principal" |
+| Mac/Linux | Qualquer browser moderno |
+
+- Endereço próprio, por exemplo `frota.nomedaescola.pt`.
+- Login por email (código de uso único) ou conta Google/Microsoft, via Cloudflare Access; sem palavras-passe a gerir.
+- Câmara para fotos de avarias e faturas; notificações push (no iPhone só após instalar no ecrã principal, iOS 16.4+).
+- Modo offline limitado: abastecimentos e avarias guardados localmente e sincronizados quando houver rede.
+- Dois layouts: painel completo para ecrã grande (secretaria) e botões grandes para uso com uma mão (instrutores: "Abastecimento", "Reportar avaria", "Os meus documentos").
+- Guia de 3 passos para instalação no iPhone.
+- Se for preciso mais tarde (lojas, GPS contínuo), a PWA pode ser empacotada como app nativa.
+
 ## 5. Modelo de dados (resumo)
 `utilizador`, `veiculo`, `condutor`, `seguro`, `iuc`, `inspecao`, `avaria`, `manutencao`, `abastecimento`, `custo` (genérico/consolidado), `documento` (tipo, veiculo_id, r2_key, validade, versao), `alerta_config`, `alerta_log`, `auditoria` (quem alterou o quê e quando).
 
@@ -118,4 +136,5 @@ Relações: tudo ligado a `veiculo`; `documento` pode estar ligado a qualquer re
 4. Têm domínio próprio e conta Cloudflare?
 5. Há dados em Excel/papel para migrar?
 6. Preferem login com Google/Microsoft da escola?
+6b. Quantos instrutores usarão o telemóvel e é Android ou iPhone?
 7. Querem integração com cartões de combustível ou GPS/telemetria no futuro?
