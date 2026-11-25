@@ -111,6 +111,8 @@ Em vez de apps nativas, a aplicação é uma **PWA** (site instalável), com um 
 - Guia de 3 passos para instalação no iPhone.
 - Se for preciso mais tarde (lojas, GPS contínuo), a PWA pode ser empacotada como app nativa.
 
+**Dispositivos (confirmado):** instrutores sobretudo em **Android** (Chrome); testar primeiro aí. iPhone mantém-se suportado via Safari. Domínio: já existe um domínio gratuito (por validar se permite gerir DNS/nameservers; senão usar endereço `workers.dev`).
+
 ## 5. Modelo de dados (resumo)
 `utilizador`, `veiculo`, `condutor`, `seguro`, `iuc`, `inspecao`, `avaria`, `manutencao`, `abastecimento`, `custo` (genérico/consolidado), `documento` (tipo, veiculo_id, r2_key, validade, versao), `alerta_config`, `alerta_log`, `auditoria` (quem alterou o quê e quando).
 
@@ -145,5 +147,5 @@ Relações: tudo ligado a `veiculo`; `documento` pode estar ligado a qualquer re
 4. Têm domínio próprio e conta Cloudflare?
 5. Há dados em Excel/papel para migrar?
 6. Preferem login com Google/Microsoft da escola?
-6b. Quantos instrutores usarão o telemóvel e é Android ou iPhone?
+6b. ~~Android ou iPhone?~~ Sobretudo Android.
 7. Querem integração com cartões de combustível ou GPS/telemetria no futuro?
