@@ -11,6 +11,16 @@ Aplicação web, alojada na Cloudflare, para centralizar a gestão dos veículos
 | Instrutor/condutor | Registar abastecimentos, reportar avarias (com foto), ver o seu veículo |
 | Consulta | Só leitura (direção, contabilidade) |
 
+## 2.1 Especificidades de escola de condução (a validar com a direção/IMT)
+- **Categorias de veículo:** ligeiros (B), motociclos (A1/A2/A), pesados (C/D) e reboques; cada veículo associado à(s) categoria(s) de ensino.
+- **Veículo de ensino:** comando duplo (pedais), identificação/dístico de ensino e averbamento no DUA. Campos próprios na ficha.
+- **Inspeção (IPO):** veículos de ensino costumam ter periodicidade própria (tipicamente mais curta); configurável por veículo, a confirmar.
+- **Seguro:** apólice específica de ensino (cobre aluno/instrutor); campo para tipo de cobertura.
+- **Instrutores:** licença/certificado de instrutor com validade, veículo(s) habituais; alerta de caducidade.
+- **Alvará/licença da escola** e documentos da escola no repositório (não só dos veículos).
+- **Uso por veículo:** horas/km de aulas por veículo e instrutor (fase 2), útil para planear revisões e desgaste (pneus, embraiagem, travões).
+- **Condutor = instrutor + alunos:** o registo de abastecimentos/avarias é feito por instrutores; os alunos não têm acesso.
+
 ## 3. Módulos e funcionalidades
 
 ### 3.1 Veículos
@@ -56,8 +66,8 @@ Aplicação web, alojada na Cloudflare, para centralizar a gestão dos veículos
 - Canais: email (fase 1), painel na app; opcional notificação push/WhatsApp mais tarde.
 - Resumo semanal por email ao gestor.
 
-### 3.11 Condutores (fase 2)
-- Instrutores, validade de carta/certificados, atribuição de veículo habitual.
+### 3.11 Instrutores (fase 2)
+- Instrutores, validade de carta e licença de instrutor, atribuição de veículo habitual, alertas de caducidade.
 
 ## 4. Arquitetura proposta (Cloudflare)
 | Camada | Tecnologia |
@@ -102,7 +112,7 @@ Relações: tudo ligado a `veiculo`; `documento` pode estar ligado a qualquer re
 - Regras legais variam por tipo de veículo → validar com a direção/contabilidade.
 
 ## 9. Questões em aberto
-1. É uma escola de condução? (afeta tipos de veículo, IPO, seguros e documentos específicos)
+1. ~~É uma escola de condução?~~ Sim. Confirmar categorias lecionadas (B, A, C/D?) e se há motas/pesados.
 2. Quantos veículos e quantos utilizadores?
 3. Quem regista abastecimentos e avarias: só administrativos ou também instrutores?
 4. Têm domínio próprio e conta Cloudflare?
