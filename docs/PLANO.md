@@ -28,6 +28,8 @@ Aplicação web, alojada na Cloudflare, para centralizar a gestão dos veículos
 - **Uso por veículo:** horas/km de aulas por veículo e instrutor (fase 2), útil para planear revisões e desgaste (pneus, embraiagem, travões).
 - **Condutor = instrutor + alunos:** o registo de abastecimentos/avarias é feito por instrutores; os alunos não têm acesso.
 
+**Dimensão (confirmado):** cerca de **29 utilizadores** = ~25 instrutores (telemóvel) + ~4 de gestão (computador). Fica abaixo do limite de 50 utilizadores gratuitos do Cloudflare Access; se a escola crescer, há que reavaliar o custo (plano pago) ou mudar para login próprio.
+
 ## 3. Módulos e funcionalidades
 
 ### 3.1 Veículos
@@ -138,7 +140,7 @@ Relações: tudo ligado a `veiculo`; `documento` pode estar ligado a qualquer re
 
 ## 9. Questões em aberto
 1. ~~É uma escola de condução?~~ Sim. Todas as categorias, de motas a tratores. ~80 veículos. Confirmar lista exata de categorias (ex.: trator/máquinas).
-2. ~~Quantos veículos?~~ ~80. Quantos utilizadores?
+2. ~~Veículos e utilizadores?~~ ~80 veículos, ~29 utilizadores (25 instrutores + 4 gestão).
 3. Quem regista abastecimentos e avarias: só administrativos ou também instrutores?
 4. Têm domínio próprio e conta Cloudflare?
 5. Há dados em Excel/papel para migrar?
