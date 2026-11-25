@@ -13,6 +13,13 @@ Aplicação web, alojada na Cloudflare, para centralizar a gestão dos veículos
 
 ## 2.1 Especificidades de escola de condução (a validar com a direção/IMT)
 - **Categorias de veículo:** ligeiros (B), motociclos (A1/A2/A), pesados (C/D) e reboques; cada veículo associado à(s) categoria(s) de ensino.
+- **Dimensão e variedade (confirmado):** cerca de **80 veículos**, de todas as categorias, de motas a tratores. Consequências no desenho:
+  - Tipo de veículo (mota, ligeiro, pesado, reboque, trator/máquina) determina quais os módulos aplicáveis: IUC, IPO e seguro são **configuráveis por veículo** ("aplicável / não aplicável" e periodicidade), porque as regras diferem por tipo (a validar).
+  - Manutenção por **km ou por horas de funcionamento** (tratores/máquinas), conforme o veículo.
+  - Campos específicos: peso bruto, lugares, cilindrada/potência (motas), tacógrafo e documentos de pesados (a validar).
+  - Listagens com **filtros e pesquisa** por categoria, estado, instrutor e prazo, e vista agrupada por categoria.
+  - Importação inicial em massa por Excel (80 fichas) e criação de lembretes em lote.
+  - Volume perfeitamente comportável em D1/R2 dentro dos planos gratuitos/baixos.
 - **Veículo de ensino:** comando duplo (pedais), identificação/dístico de ensino e averbamento no DUA. Campos próprios na ficha.
 - **Inspeção (IPO):** veículos de ensino costumam ter periodicidade própria (tipicamente mais curta); configurável por veículo, a confirmar.
 - **Seguro:** apólice específica de ensino (cobre aluno/instrutor); campo para tipo de cobertura.
@@ -130,8 +137,8 @@ Relações: tudo ligado a `veiculo`; `documento` pode estar ligado a qualquer re
 - Regras legais variam por tipo de veículo → validar com a direção/contabilidade.
 
 ## 9. Questões em aberto
-1. ~~É uma escola de condução?~~ Sim. Confirmar categorias lecionadas (B, A, C/D?) e se há motas/pesados.
-2. Quantos veículos e quantos utilizadores?
+1. ~~É uma escola de condução?~~ Sim. Todas as categorias, de motas a tratores. ~80 veículos. Confirmar lista exata de categorias (ex.: trator/máquinas).
+2. ~~Quantos veículos?~~ ~80. Quantos utilizadores?
 3. Quem regista abastecimentos e avarias: só administrativos ou também instrutores?
 4. Têm domínio próprio e conta Cloudflare?
 5. Há dados em Excel/papel para migrar?
