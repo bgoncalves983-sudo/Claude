@@ -1,0 +1,3 @@
+# Copiar para .dev.vars (nao vai para o git). Em producao usar: wrangler secret put RESEND_API_KEY
+ENVIRONMENT=dev
+RESEND_API_KEY=
