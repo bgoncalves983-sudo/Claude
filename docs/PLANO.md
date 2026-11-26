@@ -126,6 +126,8 @@ Em vez de apps nativas, a aplicação é uma **PWA** (site instalável), com um 
 
 **Dispositivos (confirmado):** instrutores sobretudo em **Android** (Chrome); testar primeiro aí. iPhone mantém-se suportado via Safari. Domínio: já existe um domínio gratuito (por validar se permite gerir DNS/nameservers; senão usar endereço `workers.dev`).
 
+**Domínio (decidido):** `frotaradical.pt`, domínio novo só para a aplicação (o do site e o email da escola não são tocados). A app fica em `frotaradical.pt` (ou `app.frotaradical.pt`). Registo em nome da escola, com email partilhado e renovação automática. Disponibilidade **por confirmar** no registo (dns.pt / dominios.pt). Depois do registo, mudar os nameservers para os da Cloudflare (plano gratuito).
+
 ## 5. Modelo de dados (resumo)
 `utilizador`, `veiculo`, `condutor`, `seguro`, `iuc`, `inspecao`, `avaria`, `manutencao`, `abastecimento`, `custo` (genérico/consolidado), `documento` (tipo, veiculo_id, r2_key, validade, versao), `alerta_config`, `alerta_log`, `auditoria` (quem alterou o quê e quando).
 
