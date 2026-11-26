@@ -1,3 +1,4 @@
+import { hojeLisboa } from "../lib/seguranca";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -12,7 +13,7 @@ import { validarAssociacao } from "../lib/conjuntos";
 
 export const conjuntos = new Hono<AppEnv>();
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => hojeLisboa();
 const ativa = sql`${associacaoConjunto.dataFim} IS NULL`;
 
 // Conjuntos ativos (gestao).

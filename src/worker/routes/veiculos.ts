@@ -8,6 +8,7 @@ import { soGestao } from "../auth";
 import { associacaoConjunto, veiculo } from "../db/schema";
 import type { AppEnv, Utilizador } from "../env";
 import { registarAuditoria } from "../lib/auditoria";
+import { veiculoParaPerfil } from "../lib/dto";
 import { eUnico } from "../lib/erros";
 
 export const veiculos = new Hono<AppEnv>();
@@ -39,6 +40,16 @@ const corpo = z.object({
   seguroCobertoPeloTrator: z.boolean().optional(),
   instrutorId: z.number().int().positive().nullish(),
   notas: z.string().max(2000).nullish(),
+  cor: z.string().trim().max(40).nullish(),
+  potenciaKw: z.number().int().positive().nullish(),
+  tara: z.number().int().positive().nullish(),
+  pneus: z.string().trim().max(60).nullish(),
+  tacografo: z.boolean().optional(),
+  valorAquisicao: z.number().nonnegative().nullish(),
+  fornecedor: z.string().trim().max(100).nullish(),
+  cartaoCombustivel: z.string().trim().max(40).nullish(),
+  localizacao: z.string().trim().max(100).nullish(),
+  dataAbate: data.nullish(),
 });
 
 /** IDs de veiculos que um instrutor pode ver: os seus e os reboques dos seus tratores. */
@@ -70,7 +81,7 @@ veiculos.get("/", async (c) => {
     q ? or(like(veiculo.matricula, `%${q}%`), like(veiculo.marca, `%${q}%`), like(veiculo.modelo, `%${q}%`)) : undefined,
   ].filter(Boolean);
   const linhas = await db.select().from(veiculo).where(and(...filtros)).orderBy(veiculo.matricula);
-  return c.json(linhas);
+  return c.json(linhas.map((l) => veiculoParaPerfil(l, c.get("user").perfil)));
 });
 
 veiculos.get("/:id", async (c) => {
@@ -90,7 +101,7 @@ veiculos.get("/:id", async (c) => {
       ),
     )
     .limit(1);
-  return c.json({ ...v, conjuntoAtivo: conjunto ?? null });
+  return c.json({ ...veiculoParaPerfil(v, c.get("user").perfil), conjuntoAtivo: conjunto ?? null });
 });
 
 veiculos.post("/", soGestao, zValidator("json", corpo), async (c) => {
@@ -105,13 +116,18 @@ veiculos.post("/", soGestao, zValidator("json", corpo), async (c) => {
   }
 });
 
-veiculos.patch("/:id", soGestao, zValidator("json", corpo.partial()), async (c) => {
+veiculos.patch("/:id", soGestao, zValidator("json", corpo.partial().extend({ versao: z.number().int().positive().optional() })), async (c) => {
   const id = Number(c.req.param("id"));
-  const alteracoes = c.req.valid("json");
+  const { versao, ...alteracoes } = c.req.valid("json");
   if (Object.keys(alteracoes).length === 0) return c.json({ erro: "Nada para alterar" }, 400);
   const db = drizzle(c.env.DB);
-  const [atualizado] = await db.update(veiculo).set(alteracoes).where(eq(veiculo.id, id)).returning();
-  if (!atualizado) return c.json({ erro: "Nao encontrado" }, 404);
+  // Edicao simultanea: se indicar a versao e ela ja mudou, recusa em vez de apagar o trabalho de outra pessoa.
+  const filtro = versao ? and(eq(veiculo.id, id), eq(veiculo.versao, versao)) : eq(veiculo.id, id);
+  const [atualizado] = await db.update(veiculo).set({ ...alteracoes, versao: sql`${veiculo.versao} + 1` }).where(filtro).returning();
+  if (!atualizado) {
+    const [existe] = await db.select({ id: veiculo.id }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
+    return existe ? c.json({ erro: "Este veiculo foi alterado por outra pessoa. Recarregue e volte a tentar." }, 409) : c.json({ erro: "Nao encontrado" }, 404);
+  }
   await registarAuditoria(c.env.DB, c.get("user").id, "editar", "veiculo", id, alteracoes);
   return c.json(atualizado);
 });

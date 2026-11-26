@@ -1,3 +1,4 @@
-# Copiar para .dev.vars (nao vai para o git). Em producao usar: wrangler secret put RESEND_API_KEY
+# Copiar para .dev.vars (nao vai para o git). Em producao:  wrangler secret put RESEND_API_KEY  e  wrangler secret put SENHA_PEPPER
 ENVIRONMENT=dev
 RESEND_API_KEY=
+SENHA_PEPPER=um-texto-longo-e-aleatorio-so-para-testes-locais

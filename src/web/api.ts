@@ -7,7 +7,7 @@ export class ErroApi extends Error {
 export async function api<T>(caminho: string, opcoes: RequestInit = {}): Promise<T> {
   const r = await fetch(`/api${caminho}`, {
     ...opcoes,
-    headers: { "content-type": "application/json", ...opcoes.headers },
+    headers: { "content-type": "application/json", "x-requested-with": "frota", ...opcoes.headers },
   });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) throw new ErroApi(r.status, (corpo as { erro?: string }).erro ?? `Erro ${r.status}`);

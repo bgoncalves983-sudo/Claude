@@ -9,8 +9,8 @@ const b64urlParaBytes = (s: string): Uint8Array => {
 };
 const b64urlParaJson = (s: string) => JSON.parse(new TextDecoder().decode(b64urlParaBytes(s)));
 
-async function chaves(teamDomain: string): Promise<Jwk[]> {
-  if (cacheChaves && Date.now() - cacheChaves.em < 3_600_000) return cacheChaves.chaves;
+async function chaves(teamDomain: string, forcar = false): Promise<Jwk[]> {
+  if (!forcar && cacheChaves && Date.now() - cacheChaves.em < 3_600_000) return cacheChaves.chaves;
   const r = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
   if (!r.ok) throw new Error("Nao foi possivel obter as chaves do Access");
   const { keys } = (await r.json()) as { keys: Jwk[] };
@@ -30,7 +30,9 @@ export async function emailDoAccess(jwt: string, teamDomain: string, aud: string
   if (corpo.iss !== `https://${teamDomain}`) return null;
   if (!corpo.exp || corpo.exp * 1000 < Date.now()) return null;
 
-  const jwk = (await chaves(teamDomain)).find((k) => k.kid === cab.kid);
+  let jwk = (await chaves(teamDomain)).find((k) => k.kid === cab.kid);
+  // Chave desconhecida: a Cloudflare pode ter rodado as chaves. Volta a pedir uma vez (no maximo de 5 em 5 minutos).
+  if (!jwk && (!cacheChaves || Date.now() - cacheChaves.em > 300_000)) jwk = (await chaves(teamDomain, true)).find((k) => k.kid === cab.kid);
   if (!jwk) return null;
   const chave = await crypto.subtle.importKey(
     "jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"],

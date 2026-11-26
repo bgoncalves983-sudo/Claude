@@ -9,7 +9,9 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 | Área | Estado |
 |---|---|
 | Esquema da base de dados (D1) e migrações | feito |
-| Autenticação (Cloudflare Access) e perfis | feito |
+| Autenticação da gestão (Cloudflare Access) e perfis | feito |
+| Login dos instrutores (utilizador e palavra-passe, sessões, bloqueio, primeiro acesso) | feito na API; falta a interface |
+| Campos por perfil, proteção CSRF, cabeçalhos de segurança | feito |
 | Veículos (listar, filtrar, criar, editar) | feito |
 | Conjuntos pesado + reboque (regras, histórico, auditoria) | feito |
 | Documentos em R2 (upload, versões, download autenticado) | feito |
@@ -31,7 +33,7 @@ npm run dev:api                          # http://localhost:8787
 curl -H 'x-dev-user: eu@exemplo.pt' localhost:8787/api/me
 ```
 
-`npm run typecheck` e `npm test` validam o código. Em `ENVIRONMENT=dev` o cabeçalho `x-dev-user`
+`npm run typecheck` e `npm test` validam o código. Com `wrangler dev` a correr, `node scripts/teste-integracao.mjs` testa os fluxos de acesso e permissões ponta a ponta. Em `ENVIRONMENT=dev` o cabeçalho `x-dev-user`
 substitui o login; em produção só o JWT do Cloudflare Access é aceite.
 
 ## Publicar na Cloudflare (uma vez)
@@ -45,6 +47,7 @@ substitui o login; em produção só o JWT do Cloudflare Access é aceite.
 6. Cloudflare Zero Trust → Access → Applications: criar uma aplicação para o domínio da app, com política
    restrita aos emails da escola. Copiar o *Application Audience (AUD) tag* e o *team domain* para
    `CF_ACCESS_AUD` e `CF_ACCESS_TEAM_DOMAIN` em `wrangler.jsonc`.
+6b. Segredo das palavras-passe dos instrutores: `npx wrangler secret put SENHA_PEPPER` (ver `docs/MIGRACAO-ACESSO.md`, que também descreve os dois endereços).
 7. Envio de emails: conta Resend com o domínio validado e `npx wrangler secret put RESEND_API_KEY`.
 8. Ligar o domínio: Workers → frota-radical → Settings → Domains & Routes → `frotaradical.pt`.
 9. `npm run deploy`

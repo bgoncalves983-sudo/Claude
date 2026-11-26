@@ -9,6 +9,9 @@ export interface Env {
   CF_ACCESS_AUD: string;
   ALERT_FROM: string;
   APP_URL: string;
+  GESTAO_HOST?: string; // por omissao gestao.frotaradical.pt (protegido pelo Cloudflare Access)
+  INSTRUTOR_HOST?: string; // por omissao frotaradical.pt (login proprio dos instrutores)
+  SENHA_PEPPER?: string; // segredo: wrangler secret put SENHA_PEPPER
   RESEND_API_KEY?: string;
 }
 
@@ -17,6 +20,9 @@ export interface Utilizador {
   email: string;
   nome: string;
   perfil: Perfil;
+  metodo: "access" | "senha";
+  deveMudarSenha: boolean;
+  username: string | null;
 }
 
 export type AppEnv = { Bindings: Env; Variables: { user: Utilizador } };
