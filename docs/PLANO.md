@@ -37,6 +37,16 @@ Aplicação web, alojada na Cloudflare, para centralizar a gestão dos veículos
 - Estado: Ativo, Em oficina, Imobilizado, Abatido/vendido.
 - Histórico completo por veículo (linha temporal de tudo o que aconteceu).
 
+### 3.1.1 Conjuntos (pesado + reboque/atrelado)
+Os pesados podem circular com reboque ou semirreboque, por isso a aplicação permite **associar um reboque a um veículo trator**.
+- O reboque é um veículo com ficha própria (matrícula, IPO, seguro, documentos, manutenção), tipo "Reboque/Semirreboque".
+- Tabela `associacao_conjunto` (veiculo_trator_id, reboque_id, data_inicio, data_fim, notas): uma associação é um **período**, não um campo fixo. Assim, o histórico fica registado e o mesmo reboque pode passar de um pesado para outro.
+- Regras: um reboque só pode estar associado a **um** trator de cada vez; o trator só aceita reboques compatíveis com a categoria (C+E, D+E, etc.).
+- Na ficha do trator aparece o reboque atual (e vice-versa), com botões "Associar", "Trocar" e "Desassociar", e o histórico de conjuntos.
+- Os custos, as avarias e os km de uma saída podem ser registados no **conjunto** ou no veículo isolado; os relatórios mostram o custo por veículo e por conjunto.
+- Alertas: se o reboque associado tiver IPO ou seguro a caducar, o aviso aparece também na ficha do trator. Não é possível dar a um conjunto como "pronto" se um dos dois estiver com documentos caducados (aviso, não bloqueio).
+- O reboque não tem consumo de combustível nem odómetro próprio; os km do reboque calculam-se a partir dos períodos de associação.
+
 ### 3.2 Seguros
 - Apólice, seguradora, tipo de cobertura, prémio, periodicidade, datas de início/fim, contacto de sinistros.
 - Anexos: apólice, recibos, carta verde.
