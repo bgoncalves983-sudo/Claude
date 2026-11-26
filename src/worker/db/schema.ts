@@ -52,6 +52,20 @@ export const veiculo = sqliteTable(
       .notNull()
       .default(false),
     instrutorId: integer("instrutor_id").references(() => utilizador.id),
+    // Dados adicionais de gestao
+    cor: text("cor"),
+    potenciaKw: integer("potencia_kw"),
+    tara: integer("tara"),
+    pneus: text("pneus"),
+    tacografo: integer("tacografo", { mode: "boolean" }).notNull().default(false),
+    valorAquisicao: real("valor_aquisicao"),
+    fornecedor: text("fornecedor"),
+    cartaoCombustivel: text("cartao_combustivel"),
+    localizacao: text("localizacao"),
+    dataAbate: text("data_abate"),
+    // Fotografia principal (objeto no R2) e data da ultima alteracao.
+    fotoKey: text("foto_key"),
+    fotoAtualizadaEm: text("foto_atualizada_em"),
     notas: text("notas"),
     criadoEm: text("criado_em").notNull().default(agora),
   },
