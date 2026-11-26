@@ -103,5 +103,21 @@ ok((await pedir("/api/auth/login", { metodo: "POST", corpo: { username: "marta.s
 const eu2 = (await pedir("/api/utilizadores", { gestor: G })).j.find((u) => u.perfil === "gestor");
 ok(eu2 && (await pedir("/api/utilizadores/" + eu2.id, { metodo: "PATCH", gestor: G, corpo: { ativo: false } })).s === 422, "ninguem desativa a propria conta");
 
+console.log("Copias de seguranca");
+const A = "admin@test.pt";
+ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");
+const bk = await pedir("/api/backups", { metodo: "POST", gestor: A });
+ok(bk.s === 201 && bk.j.tabelas > 10, "administrador cria uma copia (" + (bk.j?.tabelas ?? "?") + " tabelas)");
+const lb = (await pedir("/api/backups", { gestor: A })).j;
+ok(Array.isArray(lb) && lb.length >= 1, "a copia aparece na lista");
+const dl = await fetch(BASE + "/api/backups/" + lb[0].nome, { headers: { "x-dev-user": A } });
+const bytes = new Uint8Array(await dl.arrayBuffer());
+ok(dl.status === 200 && bytes[0] === 0x1f && bytes[1] === 0x8b, "o ficheiro descarregado e um gzip valido");
+const { gunzipSync } = await import("node:zlib");
+const conteudo = JSON.parse(gunzipSync(bytes).toString());
+ok(conteudo.tabelas.veiculo.length >= 1 && !("sessao" in conteudo.tabelas) && !("tentativa_login" in conteudo.tabelas), "inclui os dados e exclui sessoes e tentativas de login");
+ok(conteudo.tabelas.utilizador.every((u) => u.senha_hash === null), "as palavras-passe nao vao na copia");
+ok((await pedir("/api/backups/..%2F..%2Fsegredo.json.gz", { gestor: A })).s !== 200, "nome de ficheiro invalido e recusado");
+
 console.log("\n" + (total - falhas) + "/" + total + " verificacoes passaram" + (falhas ? " — " + falhas + " FALHA(S)" : ""));
 process.exit(falhas ? 1 : 0);

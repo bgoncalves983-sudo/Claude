@@ -1,3 +1,4 @@
+import { fazerBackup } from "./lib/backup";
 import { hojeLisboa } from "./lib/seguranca";
 import { inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -7,6 +8,15 @@ import { enviarResumo } from "./lib/email";
 import { avisosDoDia } from "./lib/prazos";
 
 /** Corre diariamente: envia aos gestores os avisos que ainda nao foram enviados. */
+/** Corre todos os dias: alertas diarios e, as segundas-feiras, a copia semanal da base de dados. */
+export async function correrTarefasDiarias(env: Env) {
+  const hoje = hojeLisboa();
+  const r = await correrAlertas(env, hoje);
+  const diaSemana = new Date(hoje + "T12:00:00Z").getUTCDay(); // 1 = segunda-feira
+  if (diaSemana === 1) await fazerBackup(env, `${hoje}-semanal`);
+  return r;
+}
+
 export async function correrAlertas(env: Env, hoje = hojeLisboa()) {
   const db = drizzle(env.DB);
   const devidos = await avisosDoDia(env.DB, hoje);

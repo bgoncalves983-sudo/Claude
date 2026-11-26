@@ -3,7 +3,8 @@ import { autenticar } from "./auth";
 import { cabecalhosSeguranca, protegerAlteracoes } from "./lib/seguranca";
 import { auth } from "./routes/auth";
 import { utilizadores } from "./routes/utilizadores";
-import { correrAlertas } from "./cron";
+import { backups } from "./routes/backups";
+import { correrTarefasDiarias } from "./cron";
 import type { AppEnv, Env } from "./env";
 import { alertas } from "./routes/alertas";
 import { conjuntos } from "./routes/conjuntos";
@@ -21,6 +22,7 @@ app.route("/api/auth", auth); // login/logout/mudar-senha (cada rota trata da su
 app.use("/api/*", autenticar);
 app.get("/api/me", (c) => { const u = c.get("user"); return c.json({ id: u.id, nome: u.nome, email: u.metodo === "senha" ? null : u.email, username: u.username, perfil: u.perfil, deveMudarSenha: u.deveMudarSenha }); });
 app.route("/api/utilizadores", utilizadores);
+app.route("/api/backups", backups);
 app.route("/api/veiculos", veiculos);
 app.route("/api/conjuntos", conjuntos);
 app.route("/api/documentos", documentos);
@@ -34,6 +36,6 @@ app.onError((e, c) => {
 export default {
   fetch: app.fetch,
   scheduled: async (_evento: ScheduledController, env: Env, ctx: ExecutionContext) => {
-    ctx.waitUntil(correrAlertas(env));
+    ctx.waitUntil(correrTarefasDiarias(env));
   },
 } satisfies ExportedHandler<Env>;

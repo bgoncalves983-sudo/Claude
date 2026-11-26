@@ -52,6 +52,10 @@ substitui o login; em produção só o JWT do Cloudflare Access é aceite.
 8. Ligar o domínio: Workers → frota-radical → Settings → Domains & Routes → `frotaradical.pt`.
 9. `npm run deploy`
 
+## Cópias de segurança
+
+Todas as segundas-feiras às 07:00 (UTC) a aplicação guarda uma cópia de todas as tabelas no armazenamento privado (`backups/`), mantendo as últimas 12. Não incluem palavras-passe, sessões nem tentativas de login. Só os administradores as veem: `GET /api/backups` lista, `POST /api/backups` cria uma já, `GET /api/backups/<nome>` descarrega (ficheiro `.json.gz`). Os documentos e as fotos já estão no R2 e não fazem parte do ficheiro.
+
 ## Segurança
 
 - Todas as rotas `/api/*` (exceto `/api/saude`) exigem utilizador autenticado e ativo na tabela `utilizador`.
