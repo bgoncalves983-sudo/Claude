@@ -50,9 +50,11 @@ function Painel() {
 function ListaVeiculos() {
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("");
+  const [prop, setProp] = useState("");
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (tipo) params.set("tipo", tipo);
+  if (prop) params.set("proprietario", prop);
   const { dados, erro } = useApi<Veiculo[]>(`/veiculos?${params}`);
   return (
     <>
@@ -63,6 +65,11 @@ function ListaVeiculos() {
           <option value="">Todos os tipos</option>
           {Object.entries(TIPOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <select value={prop} onChange={(e) => setProp(e.target.value)}>
+          <option value="">Todas as escolas</option>
+          <option value="Escola Radical">Escola Radical</option>
+          <option value="Escola Patria">Escola Pátria</option>
+        </select>
       </div>
       {erro && <p className="aviso">{erro}</p>}
       {!dados && !erro && <p>A carregar…</p>}
@@ -70,7 +77,7 @@ function ListaVeiculos() {
         {dados?.map((v) => (
           <li key={v.id}>
             <a href={`#/veiculos/${v.id}`}><b>{v.matricula}</b> <span>{[v.marca, v.modelo].filter(Boolean).join(" ")}</span></a>
-            <span>{TIPOS[v.tipo]}{v.categoria ? ` · ${v.categoria}` : ""} · {v.estado}</span>
+            <span>{TIPOS[v.tipo]}{v.categoria ? ` · ${v.categoria}` : ""} · {v.estado}{v.proprietario ? ` · ${v.proprietario}` : ""}</span>
           </li>
         ))}
       </ul>
@@ -89,7 +96,9 @@ function Ficha({ id }: { id: string }) {
       <dl className="ficha">
         <dt>Tipo</dt><dd>{TIPOS[v.tipo]}{v.categoria ? ` (${v.categoria})` : ""}</dd>
         <dt>Marca / modelo</dt><dd>{[v.marca, v.modelo].filter(Boolean).join(" ") || "—"}</dd>
+        <dt>Escola</dt><dd>{v.proprietario ?? "—"}</dd>
         <dt>Estado</dt><dd>{v.estado}</dd>
+        {v.notas && <><dt>Notas</dt><dd>{v.notas}</dd></>}
         <dt>Km</dt><dd>{v.kmAtuais ?? "—"}</dd>
         <dt>Conjunto</dt><dd>{v.conjuntoAtivo ? `Associado (trator #${v.conjuntoAtivo.tratorId} + reboque #${v.conjuntoAtivo.reboqueId})` : "Sem reboque associado"}</dd>
       </dl>

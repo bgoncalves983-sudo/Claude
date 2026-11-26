@@ -25,6 +25,8 @@ export const veiculo = sqliteTable(
     categoria: text("categoria"),
     marca: text("marca"),
     modelo: text("modelo"),
+    // Escola proprietaria/locataria (ex.: "Escola Radical", "Escola Patria").
+    proprietario: text("proprietario"),
     vin: text("vin"),
     combustivel: text("combustivel"),
     dataMatricula: text("data_matricula"),
@@ -53,7 +55,7 @@ export const veiculo = sqliteTable(
     notas: text("notas"),
     criadoEm: text("criado_em").notNull().default(agora),
   },
-  (t) => [index("veiculo_tipo_idx").on(t.tipo), index("veiculo_instrutor_idx").on(t.instrutorId)],
+  (t) => [index("veiculo_tipo_idx").on(t.tipo), index("veiculo_proprietario_idx").on(t.proprietario), index("veiculo_instrutor_idx").on(t.instrutorId)],
 );
 
 // Reboque associado a um trator por periodo (data_fim nulo = associacao ativa).

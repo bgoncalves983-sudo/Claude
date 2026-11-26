@@ -20,6 +20,7 @@ const corpo = z.object({
   categoria: z.string().trim().max(8).nullish(),
   marca: z.string().trim().max(60).nullish(),
   modelo: z.string().trim().max(60).nullish(),
+  proprietario: z.string().trim().max(80).nullish(),
   vin: z.string().trim().max(30).nullish(),
   combustivel: z.string().trim().max(30).nullish(),
   dataMatricula: data.nullish(),
@@ -56,7 +57,7 @@ export async function idsVisiveis(d1: D1Database, u: Utilizador): Promise<number
 
 veiculos.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const { tipo, estado, categoria, q } = c.req.query();
+  const { tipo, estado, categoria, proprietario, q } = c.req.query();
   const visiveis = await idsVisiveis(c.env.DB, c.get("user"));
   if (visiveis !== "todos" && visiveis.length === 0) return c.json([]);
 
@@ -65,6 +66,7 @@ veiculos.get("/", async (c) => {
     tipo ? eq(veiculo.tipo, tipo as (typeof TIPOS_VEICULO)[number]) : undefined,
     estado ? eq(veiculo.estado, estado as (typeof ESTADOS_VEICULO)[number]) : undefined,
     categoria ? eq(veiculo.categoria, categoria) : undefined,
+    proprietario ? eq(veiculo.proprietario, proprietario) : undefined,
     q ? or(like(veiculo.matricula, `%${q}%`), like(veiculo.marca, `%${q}%`), like(veiculo.modelo, `%${q}%`)) : undefined,
   ].filter(Boolean);
   const linhas = await db.select().from(veiculo).where(and(...filtros)).orderBy(veiculo.matricula);
