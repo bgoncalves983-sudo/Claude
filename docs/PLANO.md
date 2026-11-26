@@ -43,6 +43,9 @@ Os pesados podem circular com reboque ou semirreboque, por isso a aplicação pe
 - Tabela `associacao_conjunto` (veiculo_trator_id, reboque_id, data_inicio, data_fim, notas): uma associação é um **período**, não um campo fixo. Assim, o histórico fica registado e o mesmo reboque pode passar de um pesado para outro.
 - Regras: um reboque só pode estar associado a **um** trator de cada vez; o trator só aceita reboques compatíveis com a categoria (C+E; a lista de combinações é configurável, D+E não é lecionada).
 - Na ficha do trator aparece o reboque atual (e vice-versa), com botões "Associar", "Trocar" e "Desassociar", e o histórico de conjuntos.
+- **Quem gere:** só o **responsável de frota** (perfil Gestor) cria, troca ou termina associações; os instrutores só vêem o conjunto do seu veículo. Cada alteração fica na auditoria.
+- **Uso normal:** o pesado anda quase sempre com o mesmo reboque (associação de longa duração); a troca é excecional, mas fica registada com data, motivo e quem a fez.
+- **Seguro do reboque:** cada reboque tem uma opção "seguro próprio" (apólice ligada à ficha do reboque) ou "coberto pelo seguro do pesado associado". No segundo caso, o alerta de seguro do reboque segue o do pesado e, ao desassociar, a aplicação avisa que o reboque fica sem seguro até lhe ser atribuído um.
 - Os custos, as avarias e os km de uma saída podem ser registados no **conjunto** ou no veículo isolado; os relatórios mostram o custo por veículo e por conjunto.
 - Alertas: se o reboque associado tiver IPO ou seguro a caducar, o aviso aparece também na ficha do trator. Não é possível dar a um conjunto como "pronto" se um dos dois estiver com documentos caducados (aviso, não bloqueio).
 - O reboque não tem consumo de combustível nem odómetro próprio; os km do reboque calculam-se a partir dos períodos de associação.
