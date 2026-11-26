@@ -91,6 +91,18 @@ Os pesados podem circular com reboque ou semirreboque, por isso a aplicação pe
 ### 3.11 Instrutores (fase 2)
 - Instrutores, validade de carta e licença de instrutor, atribuição de veículo habitual, alertas de caducidade.
 
+### 3.12 Depósito de combustível do parque
+Controlo dos litros de gasóleo que entram e saem do depósito, com lançamentos manuais.
+- **Entradas** (gestor): data, litros, preço por litro, fornecedor, número da guia ou fatura e documento anexo.
+- **Saídas**: cada abastecimento "do depósito" feito por um instrutor cria a saída automaticamente. O gestor pode lançar outras saídas (geradores, máquinas).
+- **Contagem física** (gestor): litros medidos, comparados com o nível calculado. A diferença fica como ajuste, com tolerância configurável.
+- **Nível** calculado (entradas menos saídas, com ajustes), capacidade, aviso de nível baixo e autonomia estimada pelo consumo médio.
+- **Custo médio** ponderado do gasóleo: o custo de cada abastecimento do depósito calcula-se com ele, para o instrutor não ter de saber valores.
+- Movimentos só se acrescentam. Correções são novos movimentos, com autor e motivo.
+- Tabelas: `deposito` (capacidade, mínimo, tolerância) e `deposito_movimento` (tipo entrada, saída ou ajuste; litros; preço; fornecedor; guia; veículo; utilizador; abastecimento ligado). O abastecimento ganha a origem (depósito ou posto externo).
+- A validar com a contabilidade: se precisam de registo de existências e como tratam o gasóleo profissional.
+
+
 ## 4. Arquitetura proposta (Cloudflare)
 | Camada | Tecnologia |
 |---|---|

@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
-    "drizzle-orm": "^0.44.0",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
