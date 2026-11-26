@@ -15,6 +15,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply frota --remote"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/montserrat": "^5.3.0",
     "@hono/zod-validator": "^0.9.1",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.9.0",

@@ -10,13 +10,14 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 |---|---|
 | Esquema da base de dados (D1) e migrações | feito |
 | Autenticação da gestão (Cloudflare Access) e perfis | feito |
-| Login dos instrutores (utilizador e palavra-passe, sessões, bloqueio, primeiro acesso) | feito na API; falta a interface |
+| Login dos instrutores (utilizador e palavra-passe, sessões, bloqueio, primeiro acesso) | feito, com interface |
 | Campos por perfil, proteção CSRF, cabeçalhos de segurança | feito |
 | Veículos (listar, filtrar, criar, editar) | feito |
 | Conjuntos pesado + reboque (regras, histórico, auditoria) | feito |
 | Documentos em R2 (upload, versões, download autenticado) | feito |
 | Alertas de prazos e email diário (cron) | feito (falta configurar o envio de email) |
-| PWA: painel de prazos, lista e ficha de veículo | primeira versão |
+| Interface com a marca da escola (PC e telemóvel): entrada, painel, veículos, ficha, utilizadores, cópias | feito (primeira versão) |
+| Formulários de criar e editar veículo, fotos, duplicar, lote, abater, importar Excel | por fazer |
 | Seguros, IUC, IPO, avarias, manutenção, combustível (API e ecrãs) | por fazer (as tabelas já existem) |
 | Importação dos 80 veículos por Excel | por fazer |
 
