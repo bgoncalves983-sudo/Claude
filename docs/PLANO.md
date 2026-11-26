@@ -129,7 +129,8 @@ Em vez de apps nativas, a aplicação é uma **PWA** (site instalável), com um 
 | Mac/Linux | Qualquer browser moderno |
 
 - Endereço próprio, por exemplo `frota.nomedaescola.pt`.
-- Login por email (código de uso único) ou conta Google/Microsoft, via Cloudflare Access; sem palavras-passe a gerir.
+- **Gestão**: login por email (código de uso único) ou conta Google/Microsoft, via Cloudflare Access (`gestao.frotaradical.pt`).
+- **Instrutores**: utilizador e palavra-passe criados pelo responsável de frota, com mudança obrigatória no primeiro acesso (`frotaradical.pt`). Desenho e riscos em `docs/ANALISE.md`, secção 5.
 - Câmara para fotos de avarias e faturas; notificações push (no iPhone só após instalar no ecrã principal, iOS 16.4+).
 - Modo offline limitado: abastecimentos e avarias guardados localmente e sincronizados quando houver rede.
 - Dois layouts: painel completo para ecrã grande (secretaria) e botões grandes para uso com uma mão (instrutores: "Abastecimento", "Reportar avaria", "Os meus documentos").

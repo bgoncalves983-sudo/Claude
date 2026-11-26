@@ -15,7 +15,7 @@ Prioridade: **A** = antes de dar acesso aos instrutores, **B** = durante a const
 | S6 | Média | A | Se a Cloudflare rodar a chave do Access, a aplicação rejeita todos os pedidos até 1 hora (cache das chaves). | Se o `kid` não for conhecido, voltar a obter as chaves uma vez antes de recusar. |
 | S7 | Média | A | O endereço `workers.dev` continua ativo. A API recusa-o (valida o token), mas é superfície a mais. | `workers_dev: false` e `preview_urls: false`. |
 | S8 | Média | A | Administrador partilhado (`it@eradical.pt`): sem rasto de quem fez o quê. A conta Cloudflare é de serviço. | Uma conta de administrador por pessoa. 2FA na caixa partilhada e na conta Cloudflare, com pelo menos duas pessoas com recuperação. |
-| S9 | Média | A | Saída de pessoas: hoje exige alterar o Access **e** a tabela de utilizadores. Esquecer um dos dois deixa acesso ou barra alguém. | Access com regra "emails `@eradical.pt`" e a aplicação decide quem entra (tabela). Sessão: 12–24 h para gestão, 7 dias para instrutores. Desativar uma pessoa = `ativo = 0`. |
+| S9 | Média | A | Saída de pessoas e dupla manutenção do acesso. | **Gestão** (Access): regra "emails `@eradical.pt`" e a aplicação decide quem entra (tabela). **Instrutores**: conta própria (secção 5), desativar = `ativo = 0` e terminar sessões. |
 | S10 | Média | B | Backups: o histórico da base de dados da Cloudflare é limitado e o R2 não guarda versões, por isso apagar um documento seria definitivo. | Apagar = marcar como apagado (recuperável). Exportação semanal da base de dados para o R2 (cron) e cópia mensal fora da Cloudflare. |
 | S11 | Média | B | RGPD: carta e licença de instrutor, identificação de condutores em multas. | Acesso só à gestão, registo de quem consulta dados sensíveis, prazo de retenção para ex-instrutores, informação aos instrutores. Validar com quem trata da proteção de dados na escola. |
 | S12 | Baixa | B | Datas calculadas em UTC: entre as 00:00 e as 01:00 no verão, "hoje" é ontem. | Usar o fuso `Europe/Lisbon`. |
@@ -67,3 +67,36 @@ Pontos que já estão bem: JWT do Access validado (assinatura, audiência, emiss
 | F9 | C | Relatórios grandes. | Gerar em segundo plano e avisar quando estiver pronto. |
 
 A base de dados está numa região europeia (WEUR), perto de Portugal, e as tabelas têm índices: a latência não é uma preocupação com este volume.
+
+## 5. Login dos instrutores (decisão: utilizador e palavra-passe)
+
+Os instrutores não têm email e entram com utilizador e palavra-passe criados pelo responsável de frota; a gestão mantém o código por email do Cloudflare Access.
+
+**Arquitetura: dois endereços**
+- `gestao.frotaradical.pt`: protegido pelo Access (gestão, administradores, consulta).
+- `frotaradical.pt`: aplicação dos instrutores, com login próprio. É o endereço que se instala no telemóvel.
+- A mesma aplicação serve os dois. Uma sessão de instrutor só é aceite no endereço dos instrutores e o token do Access só no da gestão. Uma conta de instrutor nunca chega às rotas de gestão, mesmo que tente.
+
+**Palavras-passe**
+- O gestor cria o instrutor (nome, utilizador, escola, veículo). O sistema gera uma palavra-passe temporária aleatória, mostrada **uma vez**, válida 7 dias.
+- Primeiro acesso: entra com a temporária e **tem de** escolher a sua. Mínimo de 10 caracteres, diferente do utilizador, sem as mais comuns. Sem regras de maiúsculas e símbolos, que levam a palavras-passe piores.
+- Guardadas só como resumo (hash) com sal por utilizador e um segredo da aplicação, nunca em texto. O Cloudflare Workers limita o PBKDF2 a 100 000 iterações (a confirmar ao testar), abaixo do recomendado. Alternativa: um algoritmo mais forte (Argon2/scrypt em WebAssembly), que provavelmente exige o plano pago do Workers (cerca de 5 USD por mês). **Decisão a tomar antes de construir.**
+- Reposição **só pelo responsável de frota**: gera uma temporária nova (mostrada uma vez) e termina todas as sessões. Fica na auditoria. Não há "esqueci-me da palavra-passe" por email.
+
+**Sessões**
+- Token aleatório de 256 bits. Na base de dados guarda-se só o resumo. Cookie `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict`.
+- Duração: 14 dias com renovação ao usar. Termina ao mudar ou repor a palavra-passe, ao desativar a conta, ou pelo gestor ("Terminar sessões").
+
+**Proteção contra adivinhação**
+- Limite de tentativas por utilizador e por endereço: 5 falhas bloqueiam 15 minutos, com espera crescente.
+- A mensagem de erro é igual quando o utilizador não existe (não revela quem tem conta).
+- Comparação em tempo constante. Registo de tentativas falhadas visível à gestão.
+- Regra de limite de pedidos da Cloudflare no pedido de login.
+
+**Risco que se aceita**
+- Sem verificação em dois passos nos instrutores. Compensa-se limitando o que a conta faz: vê só o seu veículo, regista abastecimentos, avarias e verificações, e não vê custos, multas nem documentos pessoais.
+- Palavras-passe partilhadas entre instrutores: o cartão de acesso diz que é pessoal, e cada registo fica com o nome de quem o fez.
+
+**Dados novos**: `utilizador` ganha `username`, `senha_hash`, `senha_sal`, `senha_algoritmo`, `deve_mudar_senha`, `senha_alterada_em`, `falhas`, `bloqueado_ate`, `ultimo_acesso`, `metodo` (access ou senha). Tabela `sessao` (resumo do token, utilizador, criada, expira, última utilização, dispositivo). Tabela `tentativa_login` (utilizador, endereço, momento, resultado).
+
+**Passos para vocês quando for publicado**: criar o endereço `gestao.frotaradical.pt` e mudar nele a aplicação do Access; a aplicação dos instrutores fica em `frotaradical.pt`, sem Access.
