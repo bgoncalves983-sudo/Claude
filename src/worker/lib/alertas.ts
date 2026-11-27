@@ -1,6 +1,6 @@
 import { LIMIARES_ALERTA } from "../../shared/dominio";
 
-export type TipoAlerta = "seguro" | "iuc" | "ipo" | "carta" | "licenca_instrutor" | "documento" | "revisao";
+export type TipoAlerta = "seguro" | "iuc" | "ipo" | "carta" | "licenca_instrutor" | "documento" | "revisao" | "multa";
 
 export interface ItemPrazo {
   tipo: TipoAlerta;

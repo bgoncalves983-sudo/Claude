@@ -6,6 +6,7 @@ import { soGestao } from "../auth";
 import { documento } from "../db/schema";
 import type { AppEnv } from "../env";
 import { registarAuditoria } from "../lib/auditoria";
+import { ler, tipoReal } from "../lib/ficheiros";
 import { idsVisiveis } from "./veiculos";
 
 export const documentos = new Hono<AppEnv>();
@@ -43,7 +44,9 @@ documentos.post("/", soGestao, async (c) => {
   const ficheiro = form.get("file");
   if (!(ficheiro instanceof File)) return c.json({ erro: "Ficheiro em falta" }, 400);
   if (ficheiro.size === 0 || ficheiro.size > MAX_BYTES) return c.json({ erro: "Ficheiro vazio ou maior que 15 MB" }, 413);
-  if (!TIPOS_FICHEIRO.includes(ficheiro.type)) return c.json({ erro: "Apenas PDF, JPG, PNG ou WEBP" }, 415);
+  // O tipo e decidido pelo conteudo real do ficheiro, nao pelo que o browser declara.
+  const real = tipoReal(await ler(ficheiro));
+  if (!real || !TIPOS_FICHEIRO.includes(real)) return c.json({ erro: "Apenas PDF, JPG, PNG ou WEBP" }, 415);
 
   const tipo = String(form.get("tipo") ?? "outro");
   if (!(TIPOS_DOCUMENTO as readonly string[]).includes(tipo)) return c.json({ erro: "Tipo de documento invalido" }, 400);
@@ -63,13 +66,13 @@ documentos.post("/", soGestao, async (c) => {
   const versao = (anteriores[0]?.versao ?? 0) + 1;
 
   const r2Key = `${veiculoId === null ? "escola" : `veiculos/${veiculoId}`}/${crypto.randomUUID()}-${nomeSeguro(ficheiro.name)}`;
-  await c.env.DOCS.put(r2Key, ficheiro.stream(), { httpMetadata: { contentType: ficheiro.type } });
+  await c.env.DOCS.put(r2Key, ficheiro.stream(), { httpMetadata: { contentType: real } });
   try {
     const [novo] = await db
       .insert(documento)
       .values({
         veiculoId, tipo, versao, validade, r2Key,
-        nomeFicheiro: ficheiro.name, contentType: ficheiro.type, tamanho: ficheiro.size,
+        nomeFicheiro: ficheiro.name, contentType: real, tamanho: ficheiro.size,
         entidade: form.get("entidade") ? String(form.get("entidade")) : null,
         entidadeId: form.get("entidadeId") ? Number(form.get("entidadeId")) : null,
         carregadoPor: c.get("user").id,
@@ -96,6 +99,7 @@ documentos.get("/:id/ficheiro", async (c) => {
       "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(d.nomeFicheiro)}`,
       "cache-control": "private, no-store",
       "x-content-type-options": "nosniff",
+      "content-security-policy": "sandbox", // um PDF aberto no browser nao pode executar nada
     },
   });
 });

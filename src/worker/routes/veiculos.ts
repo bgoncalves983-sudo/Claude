@@ -5,11 +5,12 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { ESTADOS_VEICULO, TIPOS_VEICULO } from "../../shared/dominio";
 import { soGestao } from "../auth";
-import { associacaoConjunto, veiculo } from "../db/schema";
+import { associacaoConjunto, atribuicao, veiculo } from "../db/schema";
 import type { AppEnv, Utilizador } from "../env";
 import { registarAuditoria } from "../lib/auditoria";
 import { veiculoParaPerfil } from "../lib/dto";
 import { eUnico } from "../lib/erros";
+import { hojeLisboa } from "../lib/seguranca";
 
 export const veiculos = new Hono<AppEnv>();
 
@@ -122,6 +123,10 @@ veiculos.patch("/:id", soGestao, zValidator("json", corpo.partial().extend({ ver
   if (Object.keys(alteracoes).length === 0) return c.json({ erro: "Nada para alterar" }, 400);
   const db = drizzle(c.env.DB);
   // Edicao simultanea: se indicar a versao e ela ja mudou, recusa em vez de apagar o trabalho de outra pessoa.
+  if (alteracoes.instrutorId !== undefined) {
+    const [atual] = await db.select({ i: veiculo.instrutorId }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
+    if (atual && atual.i !== alteracoes.instrutorId) await registarAtribuicao(db, id, alteracoes.instrutorId ?? null);
+  }
   const filtro = versao ? and(eq(veiculo.id, id), eq(veiculo.versao, versao)) : eq(veiculo.id, id);
   const [atualizado] = await db.update(veiculo).set({ ...alteracoes, versao: sql`${veiculo.versao} + 1` }).where(filtro).returning();
   if (!atualizado) {
@@ -130,4 +135,103 @@ veiculos.patch("/:id", soGestao, zValidator("json", corpo.partial().extend({ ver
   }
   await registarAuditoria(c.env.DB, c.get("user").id, "editar", "veiculo", id, alteracoes);
   return c.json(atualizado);
+});
+
+/** Fecha a atribuicao em curso e abre a nova (historico de quem teve o veiculo, util para multas e responsabilidades). */
+async function registarAtribuicao(db: ReturnType<typeof drizzle>, veiculoId: number, novo: number | null) {
+  const hoje = hojeLisboa();
+  await db.update(atribuicao).set({ fim: hoje }).where(and(eq(atribuicao.veiculoId, veiculoId), sql`${atribuicao.fim} IS NULL`));
+  if (novo) await db.insert(atribuicao).values({ veiculoId, utilizadorId: novo, inicio: hoje });
+}
+
+veiculos.get("/:id/atribuicoes", soGestao, async (c) => {
+  const lista = await drizzle(c.env.DB).select().from(atribuicao).where(eq(atribuicao.veiculoId, Number(c.req.param("id")))).orderBy(sql`${atribuicao.inicio} DESC`);
+  return c.json(lista);
+});
+
+// ---------- Edicao em lote ----------
+veiculos.post("/lote", soGestao, zValidator("json", z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(200),
+  alteracoes: corpo.pick({ tipo: true, categoria: true, proprietario: true, instrutorId: true, estado: true, ipoPeriodicidadeMeses: true, iucAplicavel: true, localizacao: true }).partial(),
+})), async (c) => {
+  const { ids, alteracoes } = c.req.valid("json");
+  if (Object.keys(alteracoes).length === 0) return c.json({ erro: "Escolha pelo menos um campo a alterar." }, 400);
+  if (alteracoes.instrutorId && ids.length > 1) return c.json({ erro: "Um instrutor so pode ficar com um veiculo de cada vez nesta operacao. Atribua um a um." }, 422);
+  const db = drizzle(c.env.DB);
+  let n = 0;
+  for (const id of ids) {
+    if (alteracoes.instrutorId !== undefined) await registarAtribuicao(db, id, alteracoes.instrutorId ?? null);
+    const r = await db.update(veiculo).set({ ...alteracoes, versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.id, id)).returning({ id: veiculo.id });
+    n += r.length;
+  }
+  await registarAuditoria(c.env.DB, c.get("user").id, "editar-lote", "veiculo", null, { ids, alteracoes });
+  return c.json({ alterados: n });
+});
+
+// ---------- Abater / arquivar (nunca apaga: o historico mantem-se) ----------
+veiculos.post("/:id/abater", soGestao, zValidator("json", z.object({
+  motivo: z.enum(["vendido", "sucata", "roubado", "outro"]), data: data.optional(), valorVenda: z.number().nonnegative().nullish(), comprador: z.string().trim().max(100).nullish(), notas: z.string().trim().max(500).nullish(),
+})), async (c) => {
+  const id = Number(c.req.param("id")); const b = c.req.valid("json"); const db = drizzle(c.env.DB);
+  const [v] = await db.select({ notas: veiculo.notas }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
+  if (!v) return c.json({ erro: "Nao encontrado" }, 404);
+  const hoje = b.data ?? hojeLisboa();
+  const nota = `Abatido (${b.motivo}) em ${hoje}${b.valorVenda != null ? `, venda ${b.valorVenda} EUR` : ""}${b.comprador ? ` a ${b.comprador}` : ""}${b.notas ? `. ${b.notas}` : ""}`;
+  await db.update(veiculo).set({ estado: "abatido", dataAbate: hoje, instrutorId: null, notas: [v.notas, nota].filter(Boolean).join("\n"), versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.id, id));
+  await registarAtribuicao(db, id, null);
+  await db.update(associacaoConjunto).set({ dataFim: hoje, motivo: "Veiculo abatido" }).where(and(sql`${associacaoConjunto.dataFim} IS NULL`, or(eq(associacaoConjunto.tratorId, id), eq(associacaoConjunto.reboqueId, id))));
+  await registarAuditoria(c.env.DB, c.get("user").id, "abater", "veiculo", id, b);
+  return c.json({ ok: true });
+});
+veiculos.post("/:id/reativar", soGestao, async (c) => {
+  const id = Number(c.req.param("id"));
+  const [n] = await drizzle(c.env.DB).update(veiculo).set({ estado: "ativo", dataAbate: null, versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.id, id)).returning({ id: veiculo.id });
+  if (!n) return c.json({ erro: "Nao encontrado" }, 404);
+  await registarAuditoria(c.env.DB, c.get("user").id, "reativar", "veiculo", id);
+  return c.json({ ok: true });
+});
+
+// ---------- Importacao (CSV/Excel convertido no telemovel ou PC): pre-visualizacao e confirmacao ----------
+const semAcentos = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const TIPO_ALIAS: Record<string, (typeof TIPOS_VEICULO)[number]> = { mota: "mota", motociclo: "mota", ligeiro: "ligeiro", automovel: "ligeiro", carro: "ligeiro", pesado: "pesado", camiao: "pesado", autocarro: "pesado", reboque: "reboque", semirreboque: "reboque", trator: "trator_maquina", maquina: "trator_maquina", "trator/maquina": "trator_maquina", trator_maquina: "trator_maquina" };
+function normData(x: unknown): string | null | undefined {
+  if (x === undefined || x === null || String(x).trim() === "") return undefined;
+  const t = String(x).trim();
+  const m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null;
+}
+const txt = (x: unknown) => (x === undefined || x === null || String(x).trim() === "" ? undefined : String(x).trim());
+
+veiculos.post("/importar", soGestao, zValidator("json", z.object({ linhas: z.array(z.record(z.string(), z.unknown())).min(1).max(500), confirmar: z.boolean().optional() })), async (c) => {
+  const db = drizzle(c.env.DB);
+  const existentes = new Map((await db.select({ m: veiculo.matricula, id: veiculo.id }).from(veiculo)).map((x) => [x.m, x.id]));
+  const vistos = new Set<string>();
+  const resultado: { linha: number; matricula: string; acao: "novo" | "atualizar" | "erro"; erro?: string; dados?: Record<string, unknown> }[] = [];
+  c.req.valid("json").linhas.forEach((l, i) => {
+    const matricula = (txt(l.matricula) ?? "").toUpperCase().replace(/\s+/g, "");
+    const erro = (e: string) => resultado.push({ linha: i + 2, matricula, acao: "erro", erro: e });
+    if (matricula.length < 4) return erro("Matrícula em falta.");
+    if (vistos.has(matricula)) return erro("Matrícula repetida no ficheiro.");
+    vistos.add(matricula);
+    const existe = existentes.has(matricula);
+    const tipoTxt = txt(l.tipo);
+    const tipo = tipoTxt ? TIPO_ALIAS[semAcentos(tipoTxt)] : undefined;
+    if (tipoTxt && !tipo) return erro(`Tipo desconhecido: ${tipoTxt}.`);
+    if (!existe && !tipo) return erro("Tipo em falta (mota, ligeiro, pesado, reboque, trator).");
+    const dm = normData(l.dataMatricula);
+    if (dm === null) return erro("Data de matrícula inválida (use dd/mm/aaaa).");
+    const dados: Record<string, unknown> = { tipo, categoria: txt(l.categoria), marca: txt(l.marca), modelo: txt(l.modelo), proprietario: txt(l.proprietario), cor: txt(l.cor), combustivel: txt(l.combustivel), vin: txt(l.vin), dataMatricula: dm };
+    for (const k of Object.keys(dados)) if (dados[k] === undefined) delete dados[k];
+    resultado.push({ linha: i + 2, matricula, acao: existe ? "atualizar" : "novo", dados });
+  });
+  const resumo = { novos: resultado.filter((r) => r.acao === "novo").length, atualizar: resultado.filter((r) => r.acao === "atualizar").length, erros: resultado.filter((r) => r.acao === "erro").length };
+  if (!c.req.valid("json").confirmar) return c.json({ ...resumo, linhas: resultado });
+  // Confirmar: aplica as linhas validas; as com erro ficam de fora.
+  for (const r of resultado) {
+    if (r.acao === "novo") await db.insert(veiculo).values({ matricula: r.matricula, tipo: r.dados!.tipo as "ligeiro", ...(r.dados as object) });
+    else if (r.acao === "atualizar" && Object.keys(r.dados!).length) await db.update(veiculo).set({ ...(r.dados as object), versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.matricula, r.matricula));
+  }
+  await registarAuditoria(c.env.DB, c.get("user").id, "importar", "veiculo", null, resumo);
+  return c.json({ ...resumo, aplicado: true });
 });

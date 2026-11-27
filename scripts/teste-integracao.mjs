@@ -103,6 +103,115 @@ ok((await pedir("/api/auth/login", { metodo: "POST", corpo: { username: "marta.s
 const eu2 = (await pedir("/api/utilizadores", { gestor: G })).j.find((u) => u.perfil === "gestor");
 ok(eu2 && (await pedir("/api/utilizadores/" + eu2.id, { metodo: "PATCH", gestor: G, corpo: { ativo: false } })).s === 422, "ninguem desativa a propria conta");
 
+
+console.log("Registos: seguros, IUC, IPO, manutencao");
+const V2 = await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "bb-22-cc", tipo: "pesado", categoria: "C", ipoPeriodicidadeMeses: 24, kmAtuais: 1000 } });
+const v2 = V2.j.id;
+const b = (cam, o = {}) => pedir(`/api/veiculos/${v2}/${cam}`, o);
+ok((await b("seguros", { metodo: "POST", gestor: G, corpo: { seguradora: "X", apolice: "1", dataInicio: "2026-05-01", dataFim: "2026-04-01" } })).s === 422, "seguro com fim antes do inicio recusado");
+ok((await b("seguros", { metodo: "POST", gestor: G, corpo: { seguradora: "Fidelidade", apolice: "00-1", premio: 1210, dataInicio: "2026-02-10", dataFim: "2027-02-10" } })).s === 201, "seguro criado");
+ok((await b("iuc", { metodo: "POST", gestor: G, corpo: { ano: 2026, valor: 48.2, dataLimite: "2026-12-31" } })).s === 201, "IUC criado");
+ok((await b("iuc", { metodo: "POST", gestor: G, corpo: { ano: 2026, dataLimite: "2026-12-31" } })).s === 409, "IUC repetido no mesmo ano recusado");
+const ipo = await b("inspecoes", { metodo: "POST", gestor: G, corpo: { data: "2026-03-15", resultado: "aprovado" } });
+ok(ipo.j.registo.proximaData === "2028-03-15", "proxima IPO calculada pela periodicidade (24 meses)");
+ok((await b("manutencoes", { metodo: "POST", gestor: G, corpo: { tipo: "preventiva", data: "2026-10-02", km: 5000, custo: 312 } })).s === 201, "manutencao criada");
+ok((await pedir("/api/veiculos/" + v2, { gestor: G })).j.kmAtuais === 5000, "a manutencao atualiza os quilometros do veiculo");
+
+console.log("Instrutor: abastecimentos, avarias, verificacoes");
+const mi = await pedir("/api/utilizadores", { metodo: "POST", gestor: G, corpo: { nome: "Rui Costa", perfil: "instrutor" } });
+const li = await pedir("/api/auth/login", { metodo: "POST", corpo: { username: "rui.costa", password: mi.j.senhaTemporaria } });
+await pedir("/api/auth/mudar-senha", { metodo: "POST", cookie: li.cookie, corpo: { atual: mi.j.senhaTemporaria, nova: "pao-quente-sol-77" } });
+const ck2b = li.cookie; const eur = (await pedir("/api/me", { cookie: ck2b })).j;
+await pedir("/api/veiculos/" + v2, { metodo: "PATCH", gestor: G, corpo: { instrutorId: eur.id } });
+const I = (cam, o = {}) => pedir(`/api/veiculos/${v2}/${cam}`, { cookie: ck2b, ...o });
+ok((await I("seguros")).s === 403 && (await I("manutencoes")).s === 403 && (await I("multas")).s === 403, "instrutor nao ve seguros, manutencao nem multas");
+ok((await I("manutencoes", { metodo: "POST", corpo: { tipo: "preventiva", data: "2026-10-02" } })).s === 403, "instrutor nao regista manutencao");
+ok((await pedir(`/api/veiculos/${vid}/abastecimentos`, { cookie: ck2b })).s === 404, "instrutor nao acede a veiculo alheio");
+
+console.log("Deposito de gasoleo");
+ok((await pedir("/api/deposito", { cookie: ck2b })).s === 403, "instrutor nao ve o deposito");
+ok((await pedir("/api/deposito/entradas", { metodo: "POST", gestor: G, corpo: { litros: 20000, precoLitro: 1.46 } })).s === 422, "entrega acima da capacidade recusada");
+const ent = await pedir("/api/deposito/entradas", { metodo: "POST", gestor: G, corpo: { litros: 5000, precoLitro: 1.46, fornecedor: "Distribuidora", guia: "2026/1" } });
+ok(ent.s === 201 && ent.j.nivelL === 5000 && ent.j.custoMedioLitro === 1.46, "entrada de 5000 l: nivel e custo medio");
+const ab = await I("abastecimentos", { metodo: "POST", corpo: { origem: "deposito", litros: 50, km: 5100, clienteId: "abc-123-xyz-1" } });
+ok(ab.s === 201 && !("valor" in ab.j.registo) && !("depositoId" in ab.j.registo), "abastecimento do deposito: o instrutor nao recebe valores");
+const ab2 = await I("abastecimentos", { metodo: "POST", corpo: { origem: "deposito", litros: 50, km: 5100, clienteId: "abc-123-xyz-1" } });
+ok(ab2.s === 200 && ab2.j.repetido === true, "reenvio com o mesmo clienteId nao duplica");
+const dep = (await pedir("/api/deposito", { gestor: G })).j;
+ok(dep.nivelL === 4950 && dep.percentagem === 50, "nivel do deposito = 4950 l (so uma saida)");
+const abg = (await pedir(`/api/veiculos/${v2}/abastecimentos`, { gestor: G })).j[0];
+ok(abg.valor === 73 && abg.origem === "deposito", "a gestao ve o custo calculado (50 l x 1,46 = 73 EUR)");
+ok((await I("abastecimentos")).j.every((x) => !("valor" in x)), "a lista do instrutor nunca traz valores");
+ok((await I("abastecimentos", { metodo: "POST", corpo: { origem: "posto", litros: 30, km: 5200 } })).s === 422, "posto externo exige o valor pago");
+const aviso = await I("abastecimentos", { metodo: "POST", corpo: { origem: "posto", litros: 30, valor: 51, km: 100 } });
+ok(aviso.s === 201 && /inferiores/.test(aviso.j.aviso ?? ""), "quilometros menores que o ultimo registo: aviso");
+const cont = await pedir("/api/deposito/contagens", { metodo: "POST", gestor: G, corpo: { medidoLitros: 4920 } });
+ok(cont.j.diferencaL === -30 && cont.j.dentroDaTolerancia === true && cont.j.percentagem === -0.61, "contagem: -30 l (-0,61%) dentro da tolerancia");
+ok((await pedir("/api/deposito", { gestor: G })).j.nivelL === 4920, "o ajuste acerta o nivel para 4920 l");
+const mov = (await pedir("/api/deposito/movimentos", { gestor: G })).j;
+const idEnt = mov.find((m) => m.tipo === "entrada").id;
+ok((await pedir(`/api/deposito/movimentos/${idEnt}/anular`, { metodo: "POST", gestor: G, corpo: { motivo: "Lancado por engano" } })).s === 201, "anular uma entrada cria um movimento inverso");
+ok((await pedir(`/api/deposito/movimentos/${idEnt}/anular`, { metodo: "POST", gestor: G, corpo: { motivo: "outra vez" } })).s === 422, "nao se anula duas vezes");
+ok((await pedir("/api/deposito", { gestor: G })).j.nivelL === -80, "nivel negativo e visivel (4920 - 5000)");
+
+console.log("Avarias e verificacao diaria");
+const av = await I("avarias", { metodo: "POST", corpo: { descricao: "Ruido nos travoes", estado: "resolvida" } });
+ok(av.s === 201 && av.j.registo.estado === "reportada", "instrutor so reporta: o estado fica 'reportada'");
+ok((await I(`avarias/${av.j.registo.id}`, { metodo: "PATCH", corpo: { estado: "resolvida" } })).s === 403, "instrutor nao altera o estado da avaria");
+ok((await b(`avarias/${av.j.registo.id}`, { metodo: "PATCH", gestor: G, corpo: { estado: "resolvida" } })).j.dataResolucao !== null, "gestao resolve e fica a data de resolucao");
+const vd = await I("verificacoes", { metodo: "POST", corpo: { itens: [{ item: "Pneus", ok: true }, { item: "Travoes", ok: false }], notas: "Pedal mole", clienteId: "verif-0001-aa" } });
+ok(vd.s === 201 && vd.j.registo.resultado === "problema" && vd.j.avariaCriada === true, "verificacao com problema cria uma avaria");
+ok((await b("avarias", { gestor: G })).j.some((a) => /Verifica/.test(a.descricao)), "a avaria da verificacao aparece para a gestao");
+
+console.log("Fotografia");
+const jpeg = (n) => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(n).fill(7)]);
+const form = (g, m) => { const f = new FormData(); f.append("grande", new Blob([g], { type: "image/jpeg" }), "g.jpg"); f.append("mini", new Blob([m], { type: "image/jpeg" }), "m.jpg"); return f; };
+const up = await fetch(BASE + `/api/veiculos/${v2}/foto`, { method: "POST", headers: { "x-dev-user": G, "x-requested-with": "frota" }, body: form(jpeg(2000), jpeg(300)) });
+ok(up.status === 200, "gestor carrega foto (grande + miniatura)");
+const falso = await fetch(BASE + `/api/veiculos/${v2}/foto`, { method: "POST", headers: { "x-dev-user": G, "x-requested-with": "frota" }, body: form(new TextEncoder().encode("<html>nao sou imagem</html>"), jpeg(100)) });
+ok(falso.status === 415, "ficheiro que nao e imagem e recusado (verifica os bytes)");
+const fg = await fetch(BASE + `/api/veiculos/${v2}/foto?tam=mini`, { headers: { cookie: ck2b } });
+ok(fg.status === 200 && /immutable/.test(fg.headers.get("cache-control") ?? ""), "instrutor ve a foto do seu veiculo, com cache longa");
+ok((await fetch(BASE + `/api/veiculos/${vid}/foto`, { headers: { cookie: ck2b } })).status === 404, "instrutor nao ve fotos de veiculos alheios");
+const dtoFoto = (await pedir("/api/veiculos/" + v2, { cookie: ck2b })).j;
+ok(dtoFoto.temFoto === true && !("fotoKey" in dtoFoto), "a resposta diz que ha foto sem expor a chave interna");
+
+console.log("Operacoes sobre veiculos: atribuicao, lote, abater, importar");
+const at = (await pedir(`/api/veiculos/${v2}/atribuicoes`, { gestor: G })).j;
+ok(at.length >= 1 && at.some((x) => x.fim === null), "historico de atribuicao guardado (uma em curso)");
+const v3 = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "dd-33-ee", tipo: "ligeiro" } })).j.id;
+ok((await pedir("/api/veiculos/lote", { metodo: "POST", gestor: G, corpo: { ids: [v2, v3], alteracoes: { categoria: "B", proprietario: "Escola Patria" } } })).j.alterados === 2, "edicao em lote altera varios veiculos");
+ok((await pedir("/api/veiculos/lote", { metodo: "POST", gestor: G, corpo: { ids: [v2, v3], alteracoes: { instrutorId: eur.id } } })).s === 422, "lote nao atribui o mesmo instrutor a varios veiculos");
+ok((await pedir("/api/veiculos/lote", { metodo: "POST", cookie: ck2b, corpo: { ids: [v2], alteracoes: { categoria: "B" } } })).s === 403, "instrutor nao usa o lote");
+ok((await pedir(`/api/veiculos/${v3}/abater`, { metodo: "POST", gestor: G, corpo: { motivo: "vendido", valorVenda: 4200, comprador: "Auto Norte" } })).s === 200, "abater veiculo");
+const abat = (await pedir("/api/veiculos/" + v3, { gestor: G })).j;
+ok(abat.estado === "abatido" && abat.dataAbate && /Abatido/.test(abat.notas), "ficou abatido, com data e nota, sem apagar nada");
+ok((await pedir(`/api/veiculos/${v3}/reativar`, { metodo: "POST", gestor: G })).s === 200, "reativar veiculo");
+const prev = await pedir("/api/veiculos/importar", { metodo: "POST", gestor: G, corpo: { linhas: [
+  { matricula: "ii-11-jj", tipo: "Ligeiro", marca: "Renault", dataMatricula: "28/11/2025" }, { matricula: "bb-22-cc", marca: "Atualizada" },
+  { matricula: "kk-00-ll", tipo: "foguetao" }, { matricula: "II-11-JJ", tipo: "mota" }, { matricula: "mm-00-nn" } ] } });
+ok(prev.j.novos === 1 && prev.j.atualizar === 1 && prev.j.erros === 3, "pre-visualizacao: 1 novo, 1 a atualizar, 3 erros (tipo invalido, repetida, sem tipo)");
+ok(!(await pedir("/api/veiculos", { gestor: G })).j.some((x) => x.matricula === "II-11-JJ"), "a pre-visualizacao nao grava nada");
+const conf = await pedir("/api/veiculos/importar", { metodo: "POST", gestor: G, corpo: { confirmar: true, linhas: [{ matricula: "ii-11-jj", tipo: "Ligeiro", marca: "Renault", dataMatricula: "28/11/2025" }, { matricula: "bb-22-cc", marca: "Atualizada" }] } });
+ok(conf.j.aplicado === true, "importacao confirmada");
+const ij = (await pedir("/api/veiculos", { gestor: G })).j.find((x) => x.matricula === "II-11-JJ");
+ok(ij && ij.dataMatricula === "2025-11-28" && (await pedir("/api/veiculos/" + v2, { gestor: G })).j.marca === "Atualizada", "novo criado com data convertida; existente atualizado so nos campos preenchidos");
+
+console.log("Documentos");
+const fd = (bytes, tipo, nome) => { const f = new FormData(); f.append("file", new Blob([bytes], { type: tipo }), nome); f.append("tipo", "apolice"); f.append("veiculoId", String(v2)); return f; };
+const pdf = new TextEncoder().encode("%PDF-1.4 teste de apolice");
+const dUp = await fetch(BASE + "/api/documentos", { method: "POST", headers: { "x-dev-user": G, "x-requested-with": "frota" }, body: fd(pdf, "application/pdf", "apolice.pdf") });
+ok(dUp.status === 201, "gestor carrega um PDF");
+const dMau = await fetch(BASE + "/api/documentos", { method: "POST", headers: { "x-dev-user": G, "x-requested-with": "frota" }, body: fd(new TextEncoder().encode("<script>alert(1)</script>"), "application/pdf", "mau.pdf") });
+ok(dMau.status === 415, "HTML disfarçado de PDF e recusado");
+const dj = await dUp.json();
+const dDown = await fetch(BASE + `/api/documentos/${dj.id}/ficheiro`, { headers: { cookie: ck2b } });
+ok(dDown.status === 200 && dDown.headers.get("content-security-policy") === "sandbox", "instrutor abre o documento do seu veiculo (com sandbox)");
+
+console.log("Multas nos prazos");
+await b("multas", { metodo: "POST", gestor: G, corpo: { data: "2026-11-12", auto: "7731902", valor: 120, limitePagamento: new Date(Date.now() + 5 * 864e5).toISOString().slice(0, 10) } });
+ok((await pedir("/api/alertas", { gestor: G })).j.some((x) => x.tipo === "multa"), "a multa por pagar aparece nos prazos a atender");
+
 console.log("Copias de seguranca");
 const A = "admin@test.pt";
 ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");

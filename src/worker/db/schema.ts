@@ -188,6 +188,7 @@ export const avaria = sqliteTable(
       .default("reportada"),
     dataReporte: text("data_reporte").notNull().default(agora),
     dataResolucao: text("data_resolucao"),
+    clienteId: text("cliente_id").unique(), // gerado no telemovel: reenvios nao duplicam
   },
   (t) => [index("avaria_veiculo_idx").on(t.veiculoId), index("avaria_estado_idx").on(t.estado)],
 );

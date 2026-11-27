@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { documento, inspecao, iuc, seguro, utilizador, veiculo } from "../db/schema";
+import { documento, inspecao, iuc, multa, seguro, utilizador, veiculo } from "../db/schema";
 import { calcularAlertas, type Alerta, type ItemPrazo } from "./alertas";
 
 /** Reune todos os prazos em aberto e devolve os avisos devidos hoje. */
@@ -34,6 +34,9 @@ export async function avisosDoDia(d1: D1Database, hoje: string): Promise<Alerta[
     for (const i of ipos)
       itens.push({ tipo: "ipo", entidadeId: i.id, veiculoId: i.veiculoId, rotulo: `IPO ${mat.get(i.veiculoId)}`, data: i.proximaData! });
   }
+
+  for (const m of await db.select().from(multa).where(and(eq(multa.estado, "por_pagar"), sql`${multa.limitePagamento} IS NOT NULL`)))
+    itens.push({ tipo: "multa", entidadeId: m.id, veiculoId: m.veiculoId, rotulo: `Multa ${mat.get(m.veiculoId) ?? ""}${m.auto ? ` (auto ${m.auto})` : ""}`, data: m.limitePagamento! });
 
   for (const u of await db.select().from(utilizador).where(eq(utilizador.ativo, true))) {
     if (u.perfil !== "instrutor") continue;
