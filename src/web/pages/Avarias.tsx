@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, ErroApi } from "../api";
-import { Carregar, Foto, fdata, Icon, Matricula, useApi } from "../ui";
+import { Carregar, fdata, Icon, Matricula, useApi } from "../ui";
+import { Notificacoes } from "./Notificacoes";
 
 export interface AvariaGeral { id: number; veiculoId: number; matricula: string; veiculo: string; escola: string | null; descricao: string; estado: string; dataReporte: string; dataResolucao: string | null; reportadoPor: string | null; horasEmAberto: number | null; fotos: number[] }
 export interface ResumoAvarias { novas: number; emAnalise: number; emReparacao: number; abertas: number; maisAntigaHoras: number | null }
@@ -53,6 +54,7 @@ export function Avarias({ gestao, aoAlterar }: { gestao: boolean; aoAlterar: () 
   const depois = () => { recarregar(); r.recarregar(); aoAlterar(); };
   return (
     <>
+      {gestao && <Notificacoes />}
       {r.dados && <div className="grid kpis">
         <div className="card kpi"><span>Novas</span><b style={{ color: r.dados.novas ? "var(--crit)" : undefined }}>{r.dados.novas}</b><span>por ver</span></div>
         <div className="card kpi"><span>Em análise</span><b>{r.dados.emAnalise}</b></div>

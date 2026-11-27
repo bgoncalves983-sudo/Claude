@@ -110,7 +110,8 @@ export function Ficha({ id, eu }: { id: string; eu: Eu }) {
                 <D k={v.usaHoras ? "Horas" : "Quilómetros"} v={v.usaHoras ? (v.horasAtuais != null ? `${v.horasAtuais.toLocaleString("pt-PT")} h` : null) : (v.kmAtuais != null ? `${v.kmAtuais.toLocaleString("pt-PT")} km` : null)} />
                 <D k="Combustível" v={v.combustivel} /><D k="Cor" v={v.cor} />
               </div>
-              {v.conjuntoAtivo && <div className="note"><Icon n="link" s={14} /> Faz conjunto com um reboque.</div>}
+              {v.conjuntoAtivo && gestao && <Parceiro c={v.conjuntoAtivo} euId={v.id} />}
+              {v.conjuntoAtivo && !gestao && <div className="note"><Icon n="link" s={14} /> Faz conjunto com um reboque.</div>}
               <div className="actions noprint">
                 {gestao && <><a className="btn primary" href={`#/veiculos/${v.id}/editar`}>Editar</a><a className="btn" href={`#/veiculos/${v.id}/duplicar`}>Duplicar</a><a className="btn" href={`#/qr?ids=${v.id}`}>Etiqueta QR</a>
                   {v.estado === "abatido" ? <button className="btn" onClick={async () => { await api(`/veiculos/${v.id}/reativar`, { metodo: "POST" }); recarregar(); }}>Reativar</button> : <button className="btn ghost" onClick={() => setAbater((x) => !x)}>Abater / arquivar</button>}</>}
@@ -152,4 +153,10 @@ function Atribuicoes({ id }: { id: number }) {
   const nome = (i: number) => u.dados?.find((x) => x.id === i)?.nome ?? `Utilizador ${i}`;
   if (!dados?.length) return null;
   return <div className="card"><h3>Histórico de atribuição</h3><div className="rows">{dados.map((a) => <div className="row" key={a.id}><div><b>{nome(a.utilizadorId)}</b><small>{fdata(a.inicio)} a {a.fim ? fdata(a.fim) : "atual"}</small></div>{!a.fim && <span className="chip ok">Atual</span>}</div>)}</div></div>;
+}
+
+function Parceiro({ c, euId }: { c: { tratorId: number; reboqueId: number }; euId: number }) {
+  const outro = c.tratorId === euId ? c.reboqueId : c.tratorId;
+  const { dados } = useApi<Veiculo>(`/veiculos/${outro}`);
+  return <a className="note" href={`#/veiculos/${outro}`} style={{ textDecoration: "none" }}><Icon n="link" s={14} /> {c.tratorId === euId ? "Reboque" : "Pesado"}: <b>{dados?.matricula ?? "…"}</b> · <u>ver</u></a>;
 }

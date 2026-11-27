@@ -59,9 +59,9 @@ export const autenticar = createMiddleware<AppEnv>(async (c, next) => {
   } else if (host === h.gestao) u = await porAccess();
   else if (host === h.instrutor) u = await porSessao();
 
-  if (!u) return c.json({ erro: "Nao autenticado" }, 401);
+  if (!u) return c.json({ erro: "Não autenticado" }, 401);
   if (u.deveMudarSenha && !ROTAS_MUDAR_SENHA.includes(new URL(c.req.url).pathname)) {
-    return c.json({ erro: "Tem de mudar a palavra-passe temporaria.", codigo: "MUDAR_SENHA" }, 403);
+    return c.json({ erro: "Tem de mudar a palavra-passe temporária.", codigo: "MUDAR_SENHA" }, 403);
   }
   c.set("user", u);
   await next();
@@ -69,7 +69,7 @@ export const autenticar = createMiddleware<AppEnv>(async (c, next) => {
 
 export const exigirPerfil = (...perfis: Perfil[]) =>
   createMiddleware<AppEnv>(async (c, next) => {
-    if (!perfis.includes(c.get("user").perfil)) return c.json({ erro: "Sem permissao" }, 403);
+    if (!perfis.includes(c.get("user").perfil)) return c.json({ erro: "Sem permissão" }, 403);
     await next();
   });
 

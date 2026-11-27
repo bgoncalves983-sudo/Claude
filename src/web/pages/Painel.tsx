@@ -1,5 +1,6 @@
 import type { Alerta, Veiculo } from "../api";
 import { Carregar, ChipDias, fdata, Icon, useApi } from "../ui";
+import { Notificacoes } from "./Notificacoes";
 import { CartaoAvaria, haQuanto, type AvariaGeral, type ResumoAvarias } from "./Avarias";
 
 interface Dep { nivelL: number; percentagem: number; abaixoDoMinimo: boolean; autonomiaDias: number | null; deposito: { capacidadeL: number } }
@@ -14,6 +15,7 @@ export function Painel() {
   const por = (e: string) => (v.dados ?? []).filter((x) => x.estado === e).length;
   return (
     <Carregar erro={v.erro ?? a.erro} dados={v.dados && a.dados}>
+      <Notificacoes />
       <div className="grid kpis">
         <div className="card kpi"><span>Veículos</span><b>{v.dados?.length}</b></div>
         <div className="card kpi"><span>Prazos urgentes</span><b style={{ color: urgentes ? "var(--crit)" : undefined }}>{urgentes}</b><span>a menos de 15 dias</span></div>

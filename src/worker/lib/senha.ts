@@ -48,13 +48,13 @@ const COMUNS = [
 /** Devolve a mensagem de erro, ou null se a palavra-passe for aceitavel. Sem regras de simbolos: so tamanho e previsibilidade. */
 export function validarSenha(senha: string, username: string): string | null {
   if (senha.length < 10) return "A palavra-passe tem de ter pelo menos 10 caracteres.";
-  if (senha.length > 128) return "A palavra-passe e demasiado longa (maximo 128 caracteres).";
+  if (senha.length > 128) return "A palavra-passe é demasiado longa (maximo 128 caracteres).";
   const s = senha.toLowerCase();
-  if (username && s.includes(username.toLowerCase())) return "A palavra-passe nao pode conter o seu utilizador.";
-  if (s.includes("radical")) return "A palavra-passe nao pode conter o nome da escola.";
-  if (/^(.)\1+$/.test(senha)) return "A palavra-passe e demasiado previsivel.";
-  if (COMUNS.includes(s)) return "Essa palavra-passe e demasiado comum. Escolha outra.";
-  if (new Set(senha).size < 5) return "A palavra-passe e demasiado previsivel.";
+  if (username && s.includes(username.toLowerCase())) return "A palavra-passe não pode conter o seu utilizador.";
+  if (s.includes("radical")) return "A palavra-passe não pode conter o nome da escola.";
+  if (/^(.)\1+$/.test(senha)) return "A palavra-passe é demasiado previsível.";
+  if (COMUNS.includes(s)) return "Essa palavra-passe é demasiado comum. Escolha outra.";
+  if (new Set(senha).size < 5) return "A palavra-passe é demasiado previsível.";
   return null;
 }
 

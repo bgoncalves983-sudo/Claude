@@ -390,3 +390,18 @@ export const avariaFoto = sqliteTable(
   },
   (t) => [index("avaria_foto_avaria_idx").on(t.avariaId)],
 );
+
+// Dispositivos da gestao que recebem notificacoes push (avarias).
+export const pushSubscricao = sqliteTable(
+  "push_subscricao",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    utilizadorId: integer("utilizador_id").notNull().references(() => utilizador.id),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    dispositivo: text("dispositivo"),
+    criadoEm: text("criado_em").notNull().default(agora),
+  },
+  (t) => [index("push_utilizador_idx").on(t.utilizadorId)],
+);

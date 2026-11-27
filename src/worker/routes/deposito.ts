@@ -75,7 +75,7 @@ depositoRota.post("/contagens", escreve, zValidator("json", z.object({ data: dat
 depositoRota.post("/movimentos/:id/anular", escreve, zValidator("json", z.object({ motivo: z.string().trim().min(3).max(300) })), async (c) => {
   const id = Number(c.req.param("id")); const eu = c.get("user"); const db = drizzle(c.env.DB);
   const [m] = await db.select().from(depositoMovimento).where(eq(depositoMovimento.id, id)).limit(1);
-  if (!m) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!m) return c.json({ erro: "Não encontrado" }, 404);
   if (m.anulaMovimentoId) return c.json({ erro: "Este movimento já é uma anulação." }, 422);
   const [ja] = await db.select({ id: depositoMovimento.id }).from(depositoMovimento).where(eq(depositoMovimento.anulaMovimentoId, id)).limit(1);
   if (ja) return c.json({ erro: "Este movimento já foi anulado." }, 422);

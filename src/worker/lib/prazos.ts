@@ -40,8 +40,8 @@ export async function avisosDoDia(d1: D1Database, hoje: string): Promise<Alerta[
 
   for (const u of await db.select().from(utilizador).where(eq(utilizador.ativo, true))) {
     if (u.perfil !== "instrutor") continue;
-    if (u.cartaValidade) itens.push({ tipo: "carta", entidadeId: u.id, rotulo: `Carta de conducao de ${u.nome}`, data: u.cartaValidade });
-    if (u.licencaInstrutorValidade) itens.push({ tipo: "licenca_instrutor", entidadeId: u.id, rotulo: `Licenca de instrutor de ${u.nome}`, data: u.licencaInstrutorValidade });
+    if (u.cartaValidade) itens.push({ tipo: "carta", entidadeId: u.id, rotulo: `Carta de condução de ${u.nome}`, data: u.cartaValidade });
+    if (u.licencaInstrutorValidade) itens.push({ tipo: "licenca_instrutor", entidadeId: u.id, rotulo: `Licença de instrutor de ${u.nome}`, data: u.licencaInstrutorValidade });
   }
 
   // Documentos com validade propria (so a versao mais recente de cada tipo/veiculo).

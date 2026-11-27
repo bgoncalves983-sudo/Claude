@@ -7,7 +7,7 @@ export async function enviarResumo(env: Env, para: string[], alertas: Alerta[]):
   if (!env.RESEND_API_KEY || para.length === 0 || alertas.length === 0) return false;
   const linhas = alertas
     .map((a) => {
-      const estado = a.dias < 0 ? `CADUCADO ha ${-a.dias} dia(s)` : a.dias === 0 ? "caduca HOJE" : `caduca em ${a.dias} dia(s)`;
+      const estado = a.dias < 0 ? `CADUCADO há ${-a.dias} dia(s)` : a.dias === 0 ? "caduca HOJE" : `caduca em ${a.dias} dia(s)`;
       return `<li><b>${esc(a.rotulo)}</b>: ${estado} (${a.data})</li>`;
     })
     .join("");
@@ -18,7 +18,7 @@ export async function enviarResumo(env: Env, para: string[], alertas: Alerta[]):
       from: env.ALERT_FROM,
       to: para,
       subject: `Frota: ${alertas.length} prazo(s) a atender`,
-      html: `<p>Prazos a atender:</p><ul>${linhas}</ul><p><a href="${esc(env.APP_URL)}">Abrir a aplicacao</a></p>`,
+      html: `<p>Prazos a atender:</p><ul>${linhas}</ul><p><a href="${esc(env.APP_URL)}">Abrir a aplicação</a></p>`,
     }),
   });
   return r.ok;

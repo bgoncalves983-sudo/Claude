@@ -28,7 +28,7 @@ async function podeVer(c: { env: AppEnv["Bindings"]; get: (k: "user") => AppEnv[
 documentos.get("/", async (c) => {
   const vid = c.req.query("veiculoId");
   const veiculoId = vid ? Number(vid) : null;
-  if (!(await podeVer(c, veiculoId))) return c.json({ erro: "Sem permissao" }, 403);
+  if (!(await podeVer(c, veiculoId))) return c.json({ erro: "Sem permissão" }, 403);
   const db = drizzle(c.env.DB);
   const linhas = await db
     .select()
@@ -49,7 +49,7 @@ documentos.post("/", soGestao, async (c) => {
   if (!real || !TIPOS_FICHEIRO.includes(real)) return c.json({ erro: "Apenas PDF, JPG, PNG ou WEBP" }, 415);
 
   const tipo = String(form.get("tipo") ?? "outro");
-  if (!(TIPOS_DOCUMENTO as readonly string[]).includes(tipo)) return c.json({ erro: "Tipo de documento invalido" }, 400);
+  if (!(TIPOS_DOCUMENTO as readonly string[]).includes(tipo)) return c.json({ erro: "Tipo de documento inválido" }, 400);
   const vid = form.get("veiculoId");
   const veiculoId = vid ? Number(vid) : null;
   const validade = form.get("validade") ? String(form.get("validade")) : null;
@@ -90,7 +90,7 @@ documentos.post("/", soGestao, async (c) => {
 documentos.get("/:id/ficheiro", async (c) => {
   const db = drizzle(c.env.DB);
   const [d] = await db.select().from(documento).where(eq(documento.id, Number(c.req.param("id")))).limit(1);
-  if (!d || !(await podeVer(c, d.veiculoId))) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!d || !(await podeVer(c, d.veiculoId))) return c.json({ erro: "Não encontrado" }, 404);
   const obj = await c.env.DOCS.get(d.r2Key);
   if (!obj) return c.json({ erro: "Ficheiro em falta no armazenamento" }, 404);
   return new Response(obj.body, {

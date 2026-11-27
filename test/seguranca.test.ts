@@ -25,7 +25,7 @@ describe("palavras-passe", () => {
     expect(validarSenha("xxmarta.silvaxx12", "marta.silva")).toMatch(/utilizador/);
     expect(validarSenha("escolaradical99", "marta.silva")).toMatch(/escola/);
     expect(validarSenha("1234567890", "x")).toMatch(/comum/);
-    expect(validarSenha("aaaaaaaaaaaa", "x")).toMatch(/previsivel/);
+    expect(validarSenha("aaaaaaaaaaaa", "x")).toMatch(/previsível/);
     expect(validarSenha("cavalo-azul-lua-42", "marta.silva")).toBeNull();
   });
   it("temporaria: formato XXXX-XXXX-XXXX sem caracteres ambiguos e diferente de cada vez", () => {

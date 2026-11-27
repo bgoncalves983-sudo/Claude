@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { avaria, utilizador, veiculo } from "../db/schema";
 import type { Env } from "../env";
+import { notificarGestaoPush } from "./push";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const enderecoGestao = (env: Env) => `https://${env.GESTAO_HOST || "gestao.frotaradical.pt"}`;
@@ -32,6 +33,8 @@ export async function notificarAvaria(env: Env, avariaId: number): Promise<void>
       .from(avaria).innerJoin(veiculo, eq(veiculo.id, avaria.veiculoId)).leftJoin(utilizador, eq(utilizador.id, avaria.reportadoPor)).where(eq(avaria.id, avariaId)).limit(1);
     if (!x) return;
     const veic = [x.marca, x.modelo].filter(Boolean).join(" ");
+    // Notificacao no telemovel/PC (so chega a quem ativou); o email segue a seguir.
+    await notificarGestaoPush(env, { titulo: `Avaria: ${x.matricula}`, corpo: `${x.a.descricao.slice(0, 120)}${x.quem ? ` — ${x.quem}` : ""}`, url: "/#/avarias", tag: `avaria-${x.a.id}` });
     await enviar(env, await emailsDaGestao(env), `Avaria reportada: ${x.matricula}`,
       `<p><b>${esc(x.matricula)}</b>${veic ? ` · ${esc(veic)}` : ""}</p><p>${esc(x.a.descricao)}</p><p>Reportada por ${esc(x.quem ?? "—")}. As fotografias, se houver, chegam em poucos segundos.</p><p><a href="${esc(enderecoGestao(env))}/#/avarias">Ver avarias</a></p>`);
   } catch (e) { console.error("notificarAvaria", e); }

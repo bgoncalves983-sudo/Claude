@@ -25,7 +25,7 @@ function useEscolha() {
 type Escolha = ReturnType<typeof useEscolha>;
 
 /** Barra com o veiculo atual. "Trocar" abre o ecra de escolha (pesquisa, filtros, recentes, QR). */
-function Seletor({ e }: { e: Escolha }) {
+function Seletor({ e, saudacao }: { e: Escolha; saudacao?: string }) {
   const d = e.dados;
   const [aberto, setAberto] = useState(false);
   if (!d) return null;
@@ -40,7 +40,7 @@ function Seletor({ e }: { e: Escolha }) {
           {pode && <button type="button" className="btn" onClick={() => setAberto(true)}>Trocar</button>}
         </div>
       ) : null}
-      {aberta && pode && <EscolherVeiculo atribuidos={d.atribuidos} outros={d.outros} podeEscolherOutro={d.podeEscolherOutro} atual={e.v?.id ?? null} aoEscolher={(id) => { e.escolher(id); setAberto(false); }} fechar={() => setAberto(false)} />}
+      {aberta && pode && <EscolherVeiculo saudacao={saudacao} atribuidos={d.atribuidos} outros={d.outros} podeEscolherOutro={d.podeEscolherOutro} atual={e.v?.id ?? null} aoEscolher={(id) => { e.escolher(id); setAberto(false); }} fechar={() => setAberto(false)} />}
       {!e.v && !pode && <div className="card" style={{ maxWidth: 560 }}>Não há veículos disponíveis. Fale com o responsável de frota.</div>}
     </>
   );
@@ -63,7 +63,8 @@ export function Inicio({ eu }: { eu: Eu }) {
   const { dados, erro, v } = e;
   return (
     <Carregar erro={erro} dados={dados}>
-      <Seletor e={e} />
+      <h2 style={{ fontSize: 24 }}>Olá, {eu.nome.split(" ")[0]}</h2>
+      <Seletor e={e} saudacao={`Olá, ${eu.nome.split(" ")[0]}`} />
       {v && <>
         {(e.atribuido ? <a href={`#/veiculos/${v.id}`} className="vcard" style={{ maxWidth: 560 }}>
           <Foto tipo={v.tipo} v={v} grande />
@@ -73,7 +74,7 @@ export function Inicio({ eu }: { eu: Eu }) {
         <div className="card" style={{ display: "grid", gap: 10, maxWidth: 560 }}><b>Verificação diária do veículo</b><a className="btn primary big" href="#/verificacao"><Icon n="check" s={20} />Fazer verificação</a></div>
         <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", maxWidth: 560 }}><a className="btn big" href="#/abastecer"><Icon n="fuel" s={20} />Abastecer</a><a className="btn big" href="#/avaria"><Icon n="alert" s={20} />Avaria</a></div>
       </>}
-      {!v && <p className="muted">Olá, {eu.nome.split(" ")[0]}. Escolha acima o veículo para começar.</p>}
+      {!v && <p className="muted">Escolha o veículo para começar.</p>}
     </Carregar>
   );
 }

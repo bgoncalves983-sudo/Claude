@@ -18,9 +18,9 @@ backups.post("/", async (c) => {
 
 backups.get("/:nome", async (c) => {
   const nome = c.req.param("nome");
-  if (!/^[\w.-]+\.json\.gz$/.test(nome)) return c.json({ erro: "Nome invalido" }, 400);
+  if (!/^[\w.-]+\.json\.gz$/.test(nome)) return c.json({ erro: "Nome inválido" }, 400);
   const obj = await c.env.DOCS.get(caminhoBackup(nome));
-  if (!obj) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!obj) return c.json({ erro: "Não encontrado" }, 404);
   await registarAuditoria(c.env.DB, c.get("user").id, "descarregar-backup", "sistema", null, { nome });
   return new Response(obj.body, { headers: { "content-type": "application/gzip", "content-disposition": `attachment; filename="${nome}"`, "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 });

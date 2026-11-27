@@ -87,7 +87,7 @@ export async function podeRegistarNoutro(d1: D1Database, u: Utilizador, veiculoI
 // Para o instrutor escolher o veiculo onde vai registar (abastecimento, avaria, verificacao).
 veiculos.get("/para-registo", async (c) => {
   const eu = c.get("user");
-  if (eu.perfil !== "instrutor") return c.json({ erro: "Sem permissao" }, 403);
+  if (eu.perfil !== "instrutor") return c.json({ erro: "Sem permissão" }, 403);
   const atribuidos = await veiculosAtribuidos(c.env.DB, eu.id);
   const outro = atribuidos.length <= 1;
   const outros = outro
@@ -122,9 +122,9 @@ veiculos.get("/:id", async (c) => {
   const id = Number(c.req.param("id"));
   const db = drizzle(c.env.DB);
   const visiveis = await idsVisiveis(c.env.DB, c.get("user"));
-  if (visiveis !== "todos" && !visiveis.includes(id)) return c.json({ erro: "Nao encontrado" }, 404);
+  if (visiveis !== "todos" && !visiveis.includes(id)) return c.json({ erro: "Não encontrado" }, 404);
   const [v] = await db.select().from(veiculo).where(eq(veiculo.id, id)).limit(1);
-  if (!v) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!v) return c.json({ erro: "Não encontrado" }, 404);
   const [conjunto] = await db
     .select()
     .from(associacaoConjunto)
@@ -145,7 +145,7 @@ veiculos.post("/", soGestao, zValidator("json", corpo), async (c) => {
     await registarAuditoria(c.env.DB, c.get("user").id, "criar", "veiculo", novo.id, { matricula: novo.matricula });
     return c.json(novo, 201);
   } catch (e) {
-    if (eUnico(e)) return c.json({ erro: "Ja existe um veiculo com essa matricula" }, 409);
+    if (eUnico(e)) return c.json({ erro: "Já existe um veículo com essa matrícula" }, 409);
     throw e;
   }
 });
@@ -164,7 +164,7 @@ veiculos.patch("/:id", soGestao, zValidator("json", corpo.partial().extend({ ver
   const [atualizado] = await db.update(veiculo).set({ ...alteracoes, versao: sql`${veiculo.versao} + 1` }).where(filtro).returning();
   if (!atualizado) {
     const [existe] = await db.select({ id: veiculo.id }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
-    return existe ? c.json({ erro: "Este veiculo foi alterado por outra pessoa. Recarregue e volte a tentar." }, 409) : c.json({ erro: "Nao encontrado" }, 404);
+    return existe ? c.json({ erro: "Este veículo foi alterado por outra pessoa. Recarregue e volte a tentar." }, 409) : c.json({ erro: "Não encontrado" }, 404);
   }
   await registarAuditoria(c.env.DB, c.get("user").id, "editar", "veiculo", id, alteracoes);
   return c.json(atualizado);
@@ -189,7 +189,7 @@ veiculos.post("/lote", soGestao, zValidator("json", z.object({
 })), async (c) => {
   const { ids, alteracoes } = c.req.valid("json");
   if (Object.keys(alteracoes).length === 0) return c.json({ erro: "Escolha pelo menos um campo a alterar." }, 400);
-  if (alteracoes.instrutorId && ids.length > 1) return c.json({ erro: "Um instrutor so pode ficar com um veiculo de cada vez nesta operacao. Atribua um a um." }, 422);
+  if (alteracoes.instrutorId && ids.length > 1) return c.json({ erro: "Um instrutor só pode ficar com um veículo de cada vez nesta operação. Atribua um a um." }, 422);
   const db = drizzle(c.env.DB);
   let n = 0;
   for (const id of ids) {
@@ -207,7 +207,7 @@ veiculos.post("/:id/abater", soGestao, zValidator("json", z.object({
 })), async (c) => {
   const id = Number(c.req.param("id")); const b = c.req.valid("json"); const db = drizzle(c.env.DB);
   const [v] = await db.select({ notas: veiculo.notas }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
-  if (!v) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!v) return c.json({ erro: "Não encontrado" }, 404);
   const hoje = b.data ?? hojeLisboa();
   const nota = `Abatido (${b.motivo}) em ${hoje}${b.valorVenda != null ? `, venda ${b.valorVenda} EUR` : ""}${b.comprador ? ` a ${b.comprador}` : ""}${b.notas ? `. ${b.notas}` : ""}`;
   await db.update(veiculo).set({ estado: "abatido", dataAbate: hoje, instrutorId: null, notas: [v.notas, nota].filter(Boolean).join("\n"), versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.id, id));
@@ -219,7 +219,7 @@ veiculos.post("/:id/abater", soGestao, zValidator("json", z.object({
 veiculos.post("/:id/reativar", soGestao, async (c) => {
   const id = Number(c.req.param("id"));
   const [n] = await drizzle(c.env.DB).update(veiculo).set({ estado: "ativo", dataAbate: null, versao: sql`${veiculo.versao} + 1` }).where(eq(veiculo.id, id)).returning({ id: veiculo.id });
-  if (!n) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!n) return c.json({ erro: "Não encontrado" }, 404);
   await registarAuditoria(c.env.DB, c.get("user").id, "reativar", "veiculo", id);
   return c.json({ ok: true });
 });

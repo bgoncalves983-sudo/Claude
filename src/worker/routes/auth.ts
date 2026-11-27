@@ -21,12 +21,12 @@ auth.post("/login", zValidator("json", z.object({ username: z.string().trim().mi
   const username = c.req.valid("json").username.toLowerCase();
   const ip = c.req.header("cf-connecting-ip") ?? null;
   const pepper = c.env.SENHA_PEPPER ?? "";
-  if (!pepper) { console.error("SENHA_PEPPER nao configurado"); return c.json({ erro: "Servico indisponivel" }, 503); }
+  if (!pepper) { console.error("SENHA_PEPPER nao configurado"); return c.json({ erro: "Serviço indisponível" }, 503); }
 
   const estado = await estadoLogin(c.env.DB, username, ip);
   if (estado.bloqueado) {
     c.header("Retry-After", String(estado.segundos));
-    return c.json({ erro: "Demasiadas tentativas. Aguarde alguns minutos ou fale com o responsavel de frota.", tentarEmSegundos: estado.segundos }, 429);
+    return c.json({ erro: "Demasiadas tentativas. Aguarde alguns minutos ou fale com o responsável de frota.", tentarEmSegundos: estado.segundos }, 429);
   }
 
   const db = drizzle(c.env.DB);
@@ -40,7 +40,7 @@ auth.post("/login", zValidator("json", z.object({ username: z.string().trim().mi
   }
   if (conta.deveMudarSenha && conta.senhaTemporariaExpira && conta.senhaTemporariaExpira < new Date().toISOString()) {
     await registarTentativa(c.env.DB, username, ip, false);
-    return c.json({ erro: "A palavra-passe temporaria expirou. Fale com o responsavel de frota." }, 401);
+    return c.json({ erro: "A palavra-passe temporária expirou. Fale com o responsável de frota." }, 401);
   }
 
   await registarTentativa(c.env.DB, username, ip, true);
@@ -60,12 +60,12 @@ auth.post("/logout", async (c) => {
 
 auth.post("/mudar-senha", autenticar, zValidator("json", z.object({ atual: z.string().min(1).max(200), nova: z.string().min(1).max(200) })), async (c) => {
   const eu = c.get("user");
-  if (eu.metodo !== "senha") return c.json({ erro: "Esta conta nao usa palavra-passe." }, 400);
+  if (eu.metodo !== "senha") return c.json({ erro: "Esta conta não usa palavra-passe." }, 400);
   const { atual, nova } = c.req.valid("json");
   const pepper = c.env.SENHA_PEPPER ?? "";
   const db = drizzle(c.env.DB);
   const [u] = await db.select().from(utilizador).where(eq(utilizador.id, eu.id)).limit(1);
-  if (!(await verificarSenha(atual, u?.senhaHash ?? null, pepper))) return c.json({ erro: "A palavra-passe atual esta incorreta." }, 400);
+  if (!(await verificarSenha(atual, u?.senhaHash ?? null, pepper))) return c.json({ erro: "A palavra-passe atual está incorreta." }, 400);
   if (nova === atual) return c.json({ erro: "A nova palavra-passe tem de ser diferente da atual." }, 400);
   const erro = validarSenha(nova, eu.username ?? "");
   if (erro) return c.json({ erro }, 400);

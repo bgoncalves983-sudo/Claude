@@ -5,6 +5,8 @@ import { Login, MudarSenha, SessaoExpirada } from "./pages/Acesso";
 import { Ficha } from "./pages/Ficha";
 import { Abastecer, Avaria, Inicio, UsarVeiculo, Verificacao } from "./pages/Instrutor";
 import { Avarias, type ResumoAvarias } from "./pages/Avarias";
+import { Auditoria } from "./pages/Auditoria";
+import { Conjuntos } from "./pages/Conjuntos";
 import { Deposito } from "./pages/Deposito";
 import { FormVeiculo } from "./pages/FormVeiculo";
 import { Importar } from "./pages/Importar";
@@ -24,7 +26,7 @@ function useRota(): string[] {
   return r;
 }
 
-const NAV_GESTAO = [["", "Painel", "home"], ["avarias", "Avarias", "alert"], ["veiculos", "Veículos", "car"], ["deposito", "Depósito", "fuel"], ["utilizadores", "Utilizadores", "users"]] as const;
+const NAV_GESTAO = [["", "Painel", "home"], ["avarias", "Avarias", "alert"], ["veiculos", "Veículos", "car"], ["conjuntos", "Conjuntos", "link"], ["deposito", "Depósito", "fuel"], ["utilizadores", "Utilizadores", "users"]] as const;
 const NAV_INSTRUTOR = [["", "Início", "home"], ["abastecer", "Abastecer", "fuel"], ["avaria", "Avaria", "alert"], ["verificacao", "Verificação", "check"]] as const;
 
 function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
@@ -47,10 +49,10 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
   useEffect(() => { document.title = novas > 0 ? `(${novas}) Frota Radical` : "Frota Radical"; try { (navigator as any).setAppBadge?.(novas || undefined); } catch { /* sem suporte */ } }, [novas]);
   const nav: ReadonlyArray<readonly [string, string, string]> = instrutor ? NAV_INSTRUTOR
     : consulta ? [["", "Veículos", "car"], ["avarias", "Avarias", "alert"], ["deposito", "Depósito", "fuel"]]
-    : eu.perfil === "admin" ? [...NAV_GESTAO, ["sistema", "Sistema", "shield"]] : NAV_GESTAO;
+    : eu.perfil === "admin" ? [...NAV_GESTAO, ["auditoria", "Auditoria", "clock"], ["sistema", "Sistema", "shield"]] : NAV_GESTAO;
   const raiz = r[0] ?? "";
   const atual = instrutor && raiz === "veiculos" ? "" : consulta && raiz === "veiculos" ? "" : raiz;
-  const TITULOS: Record<string, string> = { avarias: "Avarias", "": instrutor ? "O meu veículo" : consulta ? "Veículos" : "Painel", veiculos: "Veículos", deposito: "Depósito de gasóleo", utilizadores: "Utilizadores", sistema: "Sistema", abastecer: "Registar abastecimento", avaria: "Reportar avaria", verificacao: "Verificação diária", qr: "Etiquetas QR" };
+  const TITULOS: Record<string, string> = { avarias: "Avarias", conjuntos: "Conjuntos pesado + reboque", auditoria: "Auditoria", "": instrutor ? `Olá, ${eu.nome.split(" ")[0]}` : consulta ? "Veículos" : "Painel", veiculos: "Veículos", deposito: "Depósito de gasóleo", utilizadores: "Utilizadores", sistema: "Sistema", abastecer: "Registar abastecimento", avaria: "Reportar avaria", verificacao: "Verificação diária", qr: "Etiquetas QR" };
   let titulo = TITULOS[raiz] ?? "Frota";
   if (raiz === "veiculos") titulo = r[1] === "novo" ? "Novo veículo" : r[1] === "importar" ? "Importar veículos" : r[1] && r[2] === "editar" ? "Editar veículo" : r[1] && r[2] === "duplicar" ? "Duplicar veículo" : r[1] ? "Ficha do veículo" : "Veículos";
 
@@ -69,6 +71,8 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
   else if (raiz === "qr" && gestao) pagina = <QR />;
   else if (raiz === "utilizadores" && gestao) pagina = <Utilizadores eu={eu} />;
   else if (raiz === "sistema" && eu.perfil === "admin") pagina = <Sistema />;
+  else if (raiz === "auditoria" && eu.perfil === "admin") pagina = <Auditoria />;
+  else if (raiz === "conjuntos" && gestao) pagina = <Conjuntos />;
   else pagina = <Painel />;
 
   const ligacoes = (cls?: string) => nav.map(([h, t, i]) => (

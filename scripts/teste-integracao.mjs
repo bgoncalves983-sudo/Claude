@@ -1,3 +1,6 @@
+import http from "node:http";
+import { createECDH, randomBytes } from "node:crypto";
+import ece from "http_ece";
 // Teste ponta a ponta contra `wrangler dev` (ENVIRONMENT=dev). Uso: node scripts/teste-integracao.mjs [http://localhost:8787]
 const BASE = process.argv[2] ?? "http://localhost:8787";
 let falhas = 0, total = 0;
@@ -15,6 +18,7 @@ async function pedir(caminho, { metodo = "GET", corpo, gestor, cookie, semCabeca
   return { s: r.status, j, cookie: sc ? sc.split(";")[0] : null, h: r.headers };
 }
 const G = "gestor@test.pt";
+const A = "admin@test.pt";
 
 console.log("Acesso sem autenticacao");
 ok((await pedir("/api/veiculos")).s === 401, "sem credenciais: 401");
@@ -287,8 +291,61 @@ ok(resumo.novas >= 1 && resumo.abertas >= resumo.novas && resumo.maisAntigaHoras
 ok((await pedir("/api/avarias", { cookie: ck2b })).s === 403 && (await pedir("/api/avarias/resumo", { cookie: ck2b })).s === 403, "o instrutor nao ve a lista geral");
 ok((await pedir("/api/avarias")).s === 401, "sem sessao nao ve");
 
+console.log("Conjuntos pesado + reboque");
+const tr = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "tt-10-aa", tipo: "pesado", categoria: "C" } })).j.id;
+const rb1 = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "rr-11-aa", tipo: "reboque", categoria: "CE" } })).j.id;
+const rb2 = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "rr-12-aa", tipo: "reboque", categoria: "CE" } })).j.id;
+const rbX = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "rr-13-aa", tipo: "reboque", categoria: "BE" } })).j.id;
+const cj = await pedir("/api/conjuntos", { metodo: "POST", gestor: G, corpo: { tratorId: tr, reboqueId: rb1 } });
+ok(cj.s === 201, "associar pesado C + reboque CE");
+const tz = await pedir(`/api/conjuntos/${cj.j.id}/trocar`, { metodo: "POST", gestor: G, corpo: { reboqueId: rb2, motivo: "Manutencao do reboque" } });
+ok(tz.s === 201 && tz.j.reboqueId === rb2, "trocar o reboque cria a nova associacao");
+const hist = (await pedir(`/api/conjuntos/veiculo/${tr}`, { gestor: G })).j;
+ok(hist.length === 2 && hist.filter((h) => h.dataFim === null).length === 1 && hist.find((h) => h.reboqueId === rb1).dataFim !== null, "o historico guarda o reboque anterior (fechado) e o atual (em curso)");
+const falhou = await pedir(`/api/conjuntos/${tz.j.id}/trocar`, { metodo: "POST", gestor: G, corpo: { reboqueId: rbX } });
+ok(falhou.s === 422, "trocar por reboque incompativel (BE) e recusado");
+ok((await pedir("/api/conjuntos", { gestor: G })).j.filter((x) => x.tratorId === tr).length === 1 && (await pedir("/api/conjuntos", { gestor: G })).j.find((x) => x.tratorId === tr).reboqueId === rb2, "e a troca recusada nao altera nada (tudo ou nada)");
+ok((await pedir(`/api/conjuntos/${tz.j.id}/trocar`, { metodo: "POST", gestor: G, corpo: { reboqueId: rb2 } })).s === 422, "trocar pelo mesmo reboque e recusado");
+ok((await pedir(`/api/conjuntos/${tz.j.id}/trocar`, { metodo: "POST", cookie: ck2b, corpo: { reboqueId: rb1 } })).s === 403, "instrutor nao troca conjuntos");
+
+console.log("Auditoria");
+ok((await pedir("/api/auditoria", { gestor: G })).s === 403 && (await pedir("/api/auditoria", { cookie: ck2b })).s === 403, "so os administradores veem a auditoria");
+const au = (await pedir("/api/auditoria?limite=5", { gestor: A })).j;
+ok(au.linhas.length === 5 && au.temMais === true && au.linhas[0].id > au.linhas[1].id, "lista paginada, a mais recente primeiro");
+ok(au.linhas.every((l) => "quem" in l && l.acao && l.entidade), "cada linha tem quem, acao e entidade");
+const pag2 = (await pedir(`/api/auditoria?limite=5&antes=${au.linhas[4].id}`, { gestor: A })).j;
+ok(pag2.linhas.length > 0 && pag2.linhas[0].id < au.linhas[4].id, "carregar mais continua a seguir");
+ok((await pedir("/api/auditoria?entidade=deposito", { gestor: A })).j.linhas.every((l) => l.entidade === "deposito"), "filtra por entidade");
+const na = (await pedir("/api/auditoria?naoAssociado=1", { gestor: A })).j.linhas;
+ok(na.length > 0 && na.every((l) => /naoAssociado/.test(l.detalhe)), "filtra os registos feitos em veiculos nao atribuidos");
+ok((await pedir("/api/auditoria/filtros", { gestor: A })).j.entidades.includes("veiculo"), "valores dos filtros");
+
+console.log("Notificacoes push");
+const recebidos = [];
+const servidor = http.createServer((req, res) => { const partes = []; req.on("data", (d) => partes.push(d)); req.on("end", () => { recebidos.push({ url: req.url, h: req.headers, corpo: Buffer.concat(partes) }); res.statusCode = req.url.includes("morta") ? 410 : 201; res.end(); }); });
+await new Promise((r) => servidor.listen(9911, r));
+const dispositivo = createECDH("prime256v1"); dispositivo.generateKeys(); const authSeg = randomBytes(16);
+const sub = (endpoint) => ({ endpoint, keys: { p256dh: dispositivo.getPublicKey().toString("base64url"), auth: authSeg.toString("base64url") } });
+ok((await pedir("/api/push/chave", { gestor: A })).j.chave?.length >= 80, "a gestao recebe a chave publica das notificacoes");
+ok((await pedir("/api/push/chave", { cookie: ck2b })).s === 403, "o instrutor nao subscreve notificacoes");
+ok((await pedir("/api/push/subscrever", { metodo: "POST", gestor: A, corpo: { endpoint: "http://exemplo.pt/x", keys: sub("x").keys } })).s === 400, "endereco que nao e do servico de push (http) e recusado");
+ok((await pedir("/api/push/subscrever", { metodo: "POST", gestor: A, corpo: sub("http://localhost:9911/push/1") })).s === 201, "dispositivo subscrito");
+ok((await pedir("/api/push/subscrever", { metodo: "POST", gestor: A, corpo: sub("http://localhost:9911/push/morta") })).s === 201, "segundo dispositivo (que vai expirar)");
+await pedir(`/api/veiculos/${v2}/avarias`, { metodo: "POST", cookie: ck2b, corpo: { descricao: "Fuga de óleo no motor" } });
+for (let i = 0; i < 30 && recebidos.length < 2; i++) await new Promise((r) => setTimeout(r, 200));
+const bom = recebidos.find((x) => x.url === "/push/1");
+ok(!!bom, "ao reportar uma avaria o servico de push recebe o pedido");
+ok(bom && bom.h["content-encoding"] === "aes128gcm" && /^vapid t=.+, k=.+/.test(bom.h.authorization ?? "") && bom.h.urgency === "high", "com cifra aes128gcm e identificacao VAPID");
+const msg = bom && JSON.parse(ece.decrypt(bom.corpo, { version: "aes128gcm", privateKey: dispositivo, authSecret: authSeg }).toString("utf8"));
+ok(msg && /^Avaria: BB-22-CC/.test(msg.titulo) && msg.corpo.includes("Fuga de óleo") && msg.corpo.includes("Rui Costa") && msg.url === "/#/avarias", "so o dispositivo decifra, e a mensagem tem veiculo, texto e quem reportou");
+await new Promise((r) => setTimeout(r, 500));
+await pedir(`/api/veiculos/${v2}/avarias`, { metodo: "POST", cookie: ck2b, corpo: { descricao: "Segunda avaria" } });
+for (let i = 0; i < 30 && recebidos.filter((x) => x.url === "/push/morta").length < 2 && recebidos.length < 4; i++) await new Promise((r) => setTimeout(r, 200));
+ok(recebidos.filter((x) => x.url === "/push/morta").length === 1, "um dispositivo que responde 410 (desinstalado) e removido e nao volta a ser notificado");
+ok((await pedir("/api/push/remover", { metodo: "POST", gestor: A, corpo: { endpoint: "http://localhost:9911/push/1" } })).s === 200, "dispositivo pode desativar as notificacoes");
+servidor.close();
+
 console.log("Copias de seguranca");
-const A = "admin@test.pt";
 ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");
 const bk = await pedir("/api/backups", { metodo: "POST", gestor: A });
 ok(bk.s === 201 && bk.j.tabelas > 10, "administrador cria uma copia (" + (bk.j?.tabelas ?? "?") + " tabelas)");

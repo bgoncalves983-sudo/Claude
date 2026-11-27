@@ -16,7 +16,7 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 fotos.post("/:id/foto", exigirPerfil("admin", "gestor"), async (c) => {
   const id = Number(c.req.param("id"));
   const [v] = await drizzle(c.env.DB).select({ id: veiculo.id, fotoKey: veiculo.fotoKey }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
-  if (!v) return c.json({ erro: "Nao encontrado" }, 404);
+  if (!v) return c.json({ erro: "Não encontrado" }, 404);
   const form = await c.req.formData();
   const grande = form.get("grande"), mini = form.get("mini");
   if (!(grande instanceof File) || !(mini instanceof File)) return c.json({ erro: "Envie a imagem e a miniatura." }, 400);
@@ -37,7 +37,7 @@ fotos.post("/:id/foto", exigirPerfil("admin", "gestor"), async (c) => {
 fotos.get("/:id/foto", async (c) => {
   const id = Number(c.req.param("id")); const eu = c.get("user");
   const vis = await idsVisiveis(c.env.DB, eu);
-  if (vis !== "todos" && !vis.includes(id)) return c.json({ erro: "Nao encontrado" }, 404);
+  if (vis !== "todos" && !vis.includes(id)) return c.json({ erro: "Não encontrado" }, 404);
   const [v] = await drizzle(c.env.DB).select({ k: veiculo.fotoKey }).from(veiculo).where(eq(veiculo.id, id)).limit(1);
   if (!v?.k) return c.json({ erro: "Sem fotografia" }, 404);
   const [b, e1, e2] = v.k.split("|");

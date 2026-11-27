@@ -52,22 +52,22 @@ utilizadores.post("/", zValidator("json", criar), async (c) => {
   const db = drizzle(c.env.DB);
 
   if (dados.perfil !== "instrutor") {
-    if (!dados.email) return c.json({ erro: "Indique o email (a gestao entra com codigo enviado por email)." }, 422);
+    if (!dados.email) return c.json({ erro: "Indique o email (a gestao entra com código enviado por email)." }, 422);
     try {
       const [n] = await db.insert(utilizador).values({ email: dados.email, nome: dados.nome, perfil: dados.perfil, metodo: "access", escola: dados.escola ?? null }).returning();
       await registarAuditoria(c.env.DB, eu.id, "criar", "utilizador", n.id, { perfil: n.perfil });
       return c.json(publico(n), 201);
-    } catch (e) { if (eUnico(e)) return c.json({ erro: "Ja existe um utilizador com esse email." }, 409); throw e; }
+    } catch (e) { if (eUnico(e)) return c.json({ erro: "Já existe um utilizador com esse email." }, 409); throw e; }
   }
 
   // Instrutor: nome de utilizador "primeiro.ultimo", unico (acrescenta numero se necessario).
   const base = dados.username ?? sugerirUsername(dados.nome);
-  if (!base) return c.json({ erro: "Nao foi possivel sugerir um utilizador a partir do nome." }, 422);
+  if (!base) return c.json({ erro: "Não foi possível sugerir um utilizador a partir do nome." }, 422);
   let username = base;
   for (let i = 2; i < 50; i++) {
     const [existe] = await db.select({ id: utilizador.id }).from(utilizador).where(eq(utilizador.username, username)).limit(1);
     if (!existe) break;
-    if (dados.username) return c.json({ erro: "Esse utilizador ja existe." }, 409);
+    if (dados.username) return c.json({ erro: "Esse utilizador já existe." }, 409);
     username = `${base}${i}`;
   }
   const senha = gerarSenhaTemporaria();
@@ -80,7 +80,7 @@ utilizadores.post("/", zValidator("json", criar), async (c) => {
     await registarAuditoria(c.env.DB, eu.id, "criar", "utilizador", n.id, { perfil: "instrutor", username });
     // A palavra-passe temporaria so aparece nesta resposta, uma vez.
     return c.json({ ...publico(n), senhaTemporaria: senha, senhaTemporariaExpira: n.senhaTemporariaExpira }, 201);
-  } catch (e) { if (eUnico(e)) return c.json({ erro: "Esse utilizador ja existe." }, 409); throw e; }
+  } catch (e) { if (eUnico(e)) return c.json({ erro: "Esse utilizador já existe." }, 409); throw e; }
 });
 
 utilizadores.patch("/:id", zValidator("json", z.object({
@@ -90,8 +90,8 @@ utilizadores.patch("/:id", zValidator("json", z.object({
   const eu = c.get("user"); const id = Number(c.req.param("id")); const alt = c.req.valid("json");
   const db = drizzle(c.env.DB);
   const [alvo] = await db.select().from(utilizador).where(eq(utilizador.id, id)).limit(1);
-  if (!alvo) return c.json({ erro: "Nao encontrado" }, 404);
-  if (alt.ativo === false && id === eu.id) return c.json({ erro: "Nao pode desativar a sua propria conta." }, 422);
+  if (!alvo) return c.json({ erro: "Não encontrado" }, 404);
+  if (alt.ativo === false && id === eu.id) return c.json({ erro: "Não pode desativar a sua própria conta." }, 422);
   if (alvo.perfil !== "instrutor" && alvo.perfil !== "consulta" && eu.perfil !== "admin") return c.json({ erro: "Apenas um administrador altera gestores e administradores." }, 403);
   if (Object.keys(alt).length === 0) return c.json({ erro: "Nada para alterar" }, 400);
   const [n] = await db.update(utilizador).set(alt).where(eq(utilizador.id, id)).returning();
@@ -104,7 +104,7 @@ utilizadores.post("/:id/repor-senha", async (c) => {
   const eu = c.get("user"); const id = Number(c.req.param("id"));
   const db = drizzle(c.env.DB);
   const [alvo] = await db.select().from(utilizador).where(and(eq(utilizador.id, id), eq(utilizador.metodo, "senha"))).limit(1);
-  if (!alvo) return c.json({ erro: "Instrutor nao encontrado" }, 404);
+  if (!alvo) return c.json({ erro: "Instrutor não encontrado" }, 404);
   const senha = gerarSenhaTemporaria();
   await db.update(utilizador).set({ senhaHash: await criarHash(senha, c.env.SENHA_PEPPER ?? ""), deveMudarSenha: true, senhaTemporariaExpira: expiraTemporaria() }).where(eq(utilizador.id, id));
   await terminarSessoes(c.env.DB, id);

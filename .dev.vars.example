@@ -1,4 +1,7 @@
-# Copiar para .dev.vars (nao vai para o git). Em producao:  wrangler secret put RESEND_API_KEY  e  wrangler secret put SENHA_PEPPER
+# Copiar para .dev.vars (nao vai para o git).
 ENVIRONMENT=dev
 RESEND_API_KEY=
 SENHA_PEPPER=um-texto-longo-e-aleatorio-so-para-testes-locais
+# Notificacoes push: node scripts/gerar-vapid.mjs
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=

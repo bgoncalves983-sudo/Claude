@@ -47,13 +47,13 @@ function criarRouter(r: Recurso) {
     const eu = c.get("user");
     const metodo = c.req.method;
     const permitidos = metodo === "GET" ? r.ler : r.escrever;
-    if (!permitidos.includes(eu.perfil)) return c.json({ erro: "Sem permissao" }, 403);
+    if (!permitidos.includes(eu.perfil)) return c.json({ erro: "Sem permissão" }, 403);
     const vid = Number(c.req.param("veiculoId"));
     const vis = await idsVisiveis(c.env.DB, eu);
     if (vis !== "todos" && !vis.includes(vid)) {
       // Excecao: registar (nunca ler) noutro veiculo, se o instrutor tiver 0 ou 1 veiculo atribuido.
       const registo = metodo === "POST" && eu.perfil === "instrutor" && ["abastecimentos", "avarias", "verificacoes"].includes(r.nome);
-      if (!registo || !(await podeRegistarNoutro(c.env.DB, eu, vid))) return c.json({ erro: "Nao encontrado" }, 404);
+      if (!registo || !(await podeRegistarNoutro(c.env.DB, eu, vid))) return c.json({ erro: "Não encontrado" }, 404);
       c.set("naoAssociado", true);
     }
     await next();
@@ -87,14 +87,14 @@ function criarRouter(r: Recurso) {
       await registarAuditoria(c.env.DB, eu.id, "criar", r.nome, nova.id, { veiculoId, ...(c.get("naoAssociado") ? { naoAssociado: true } : {}) });
       return c.json({ registo: limpar(nova, eu), ...extra }, 201);
     } catch (e) {
-      if (eUnico(e)) return c.json({ erro: "Ja existe um registo igual." }, 409);
+      if (eUnico(e)) return c.json({ erro: "Já existe um registo igual." }, 409);
       throw e;
     }
   });
 
   app.patch("/:id", zValidator("json", r.criar.partial()), async (c) => {
     const eu = c.get("user");
-    if (!GESTAO.includes(eu.perfil as any)) return c.json({ erro: "Sem permissao" }, 403);
+    if (!GESTAO.includes(eu.perfil as any)) return c.json({ erro: "Sem permissão" }, 403);
     const id = Number(c.req.param("id")); const vid = Number(c.req.param("veiculoId"));
     const alt = c.req.valid("json");
     if (Object.keys(alt).length === 0) return c.json({ erro: "Nada para alterar" }, 400);
@@ -102,23 +102,23 @@ function criarRouter(r: Recurso) {
     if (r.nome === "avarias" && (alt as any).estado === "resolvida") extra.dataResolucao = hojeLisboa();
     try {
       const [n] = (await drizzle(c.env.DB).update(r.tabela).set({ ...alt, ...extra }).where(and(eq(r.tabela.id, id), eq(r.tabela.veiculoId, vid))).returning()) as any[];
-      if (!n) return c.json({ erro: "Nao encontrado" }, 404);
+      if (!n) return c.json({ erro: "Não encontrado" }, 404);
       await registarAuditoria(c.env.DB, eu.id, "editar", r.nome, id, alt);
       return c.json(n);
-    } catch (e) { if (eUnico(e)) return c.json({ erro: "Ja existe um registo igual." }, 409); throw e; }
+    } catch (e) { if (eUnico(e)) return c.json({ erro: "Já existe um registo igual." }, 409); throw e; }
   });
 
   app.delete("/:id", async (c) => {
     const eu = c.get("user");
-    if (!GESTAO.includes(eu.perfil as any)) return c.json({ erro: "Sem permissao" }, 403);
+    if (!GESTAO.includes(eu.perfil as any)) return c.json({ erro: "Sem permissão" }, 403);
     const id = Number(c.req.param("id")); const vid = Number(c.req.param("veiculoId"));
     if (r.nome === "abastecimentos") {
       // Um abastecimento do deposito tem movimento associado: anula-se em vez de apagar.
       const [a] = await drizzle(c.env.DB).select().from(abastecimento).where(eq(abastecimento.id, id)).limit(1);
-      if (a?.origem === "deposito") return c.json({ erro: "Abastecimento do deposito: anule o movimento no deposito." }, 422);
+      if (a?.origem === "deposito") return c.json({ erro: "Abastecimento do depósito: anule o movimento no depósito." }, 422);
     }
     const [x] = (await drizzle(c.env.DB).delete(r.tabela).where(and(eq(r.tabela.id, id), eq(r.tabela.veiculoId, vid))).returning()) as any[];
-    if (!x) return c.json({ erro: "Nao encontrado" }, 404);
+    if (!x) return c.json({ erro: "Não encontrado" }, 404);
     await registarAuditoria(c.env.DB, eu.id, "apagar", r.nome, id, { veiculoId: vid });
     return c.json({ ok: true });
   });

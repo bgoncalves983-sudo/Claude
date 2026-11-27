@@ -11,6 +11,8 @@ export interface Env {
   APP_URL: string;
   GESTAO_HOST?: string; // por omissao gestao.frotaradical.pt (protegido pelo Cloudflare Access)
   INSTRUTOR_HOST?: string; // por omissao frotaradical.pt (login proprio dos instrutores)
+  VAPID_PUBLIC_KEY?: string; // chave publica das notificacoes push (nao e segredo)
+  VAPID_PRIVATE_KEY?: string; // segredo: wrangler secret put VAPID_PRIVATE_KEY
   SENHA_PEPPER?: string; // segredo: wrangler secret put SENHA_PEPPER
   RESEND_API_KEY?: string;
 }

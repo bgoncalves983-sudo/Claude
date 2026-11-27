@@ -24,8 +24,11 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 | Email à gestão assim que uma avaria é reportada, e lembrete diário das que passam 24 h sem resposta | feito; ativa-se com a chave do Resend |
 | Alertas de prazos (incluindo multas) e painel | feito; falta ligar o envio de emails (Resend) |
 | Cópias de segurança semanais | feito |
+| Notificações push para a gestão (avarias), mesmo com a aplicação fechada (ver `docs/NOTIFICACOES.md`) | feito; ativa-se com as chaves VAPID |
+| Conjuntos pesado + reboque: criar, trocar (tudo ou nada), terminar, histórico | feito |
+| Ecrã de auditoria (administradores) | feito |
+| Escolha de veículo do instrutor: ecrã completo com pesquisa, filtros, recentes, leitura de QR | feito |
 | Documentos a bordo disponíveis sem rede no telemóvel | por fazer |
-| Ecrã de auditoria | por fazer |
 
 ## Desenvolvimento local
 

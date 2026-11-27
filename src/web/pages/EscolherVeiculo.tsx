@@ -48,10 +48,10 @@ function LerQR({ aoLer, fechar }: { aoLer: (id: number) => void; fechar: () => v
   );
 }
 
-export interface PropsEscolher { atribuidos: Veiculo[]; outros: Veiculo[]; podeEscolherOutro: boolean; atual: number | null; aoEscolher: (id: number) => void; fechar: () => void }
+export interface PropsEscolher { saudacao?: string; atribuidos: Veiculo[]; outros: Veiculo[]; podeEscolherOutro: boolean; atual: number | null; aoEscolher: (id: number) => void; fechar: () => void }
 
 /** Ecra inteiro para escolher o veiculo: pesquisa, filtros, recentes, QR. */
-export function EscolherVeiculo({ atribuidos, outros, podeEscolherOutro, atual, aoEscolher, fechar }: PropsEscolher) {
+export function EscolherVeiculo({ saudacao, atribuidos, outros, podeEscolherOutro, atual, aoEscolher, fechar }: PropsEscolher) {
   const [q, setQ] = useState(""); const [tipo, setTipo] = useState(""); const [ler, setLer] = useState(false);
   const temScanner = typeof window !== "undefined" && "BarcodeDetector" in window && !!navigator.mediaDevices?.getUserMedia;
   const todos = useMemo(() => [...atribuidos, ...outros], [atribuidos, outros]);
@@ -66,9 +66,10 @@ export function EscolherVeiculo({ atribuidos, outros, podeEscolherOutro, atual, 
 
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label="Escolher veículo">
-      <header className="sheet-h"><button type="button" className="btn ghost" onClick={fechar} aria-label="Voltar">← Voltar</button><h2>Escolher veículo</h2>{temScanner && podeEscolherOutro && <button type="button" className="btn" onClick={() => setLer((x) => !x)}>Ler QR</button>}</header>
+      <header className="sheet-h"><button type="button" className="btn ghost" onClick={fechar} aria-label="Voltar">← Voltar</button><h2>{saudacao && atual === null ? saudacao : "Escolher veículo"}</h2>{temScanner && podeEscolherOutro && <button type="button" className="btn" onClick={() => setLer((x) => !x)}>Ler QR</button>}</header>
       <div className="sheet-b">
         {ler && <LerQR aoLer={lidoQR} fechar={() => setLer(false)} />}
+        {saudacao && atual === null && <p style={{ margin: 0, fontSize: 15 }}>Escolha o veículo para começar.</p>}
         {!podeEscolherOutro && atribuidos.length > 1 && <div className="note">Tem mais de um veículo atribuído. Escolha o que vai usar.</div>}
         {podeEscolherOutro && <>
           <label className="search"><span className="muted" aria-hidden="true">⌕&nbsp;</span><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Matrícula, marca ou modelo" aria-label="Procurar veículo" autoFocus /></label>
