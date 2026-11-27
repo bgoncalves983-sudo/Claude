@@ -10,6 +10,7 @@ const IC: Record<string, string> = {
   users: "M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-6 7-6s7 2.5 7 6M17 5a3 3 0 010 6M22 20c0-2.5-1.5-4.5-4-5.3",
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4",
   plus: "M12 5v14M5 12h14", clock: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2", logout: "M10 17l5-5-5-5M15 12H3M21 4v16",
+  fuel: "M4 21V5a2 2 0 012-2h6a2 2 0 012 2v16M3 21h12M14 9h3a2 2 0 012 2v5a1.5 1.5 0 003 0V9l-3-3", alert: "M12 3l10 18H2L12 3zM12 10v5M12 18v.5", camera: "M4 8h3l2-3h6l2 3h3v12H4zM12 17a4 4 0 100-8 4 4 0 000 8z", file: "M6 3h8l5 5v13H6zM14 3v5h5M9 13h7M9 17h7", link: "M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1",
   search: "M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5", check: "M5 13l4 4L19 7", copy: "M9 9h11v11H9zM5 15V5h10",
 };
 export function Icon({ n, s = 20 }: { n: keyof typeof IC | string; s?: number }) {
@@ -30,10 +31,12 @@ const SIL: Record<string, string> = {
   trator_maquina: '<path d="M30 14h20l4 14h12v16H30z" fill="currentColor"/><circle cx="20" cy="42" r="13" fill="#0003" stroke="currentColor" stroke-width="4"/><circle cx="64" cy="48" r="8" fill="#0003" stroke="currentColor" stroke-width="3"/>',
 };
 /** Silhueta enquanto o veiculo nao tem fotografia. */
-export function Foto({ tipo, tag }: { tipo: string; tag?: boolean }) {
+export function Foto({ tipo, tag, v, grande }: { tipo: string; tag?: boolean; v?: { id: number; temFoto: boolean; fotoVersao?: string | null }; grande?: boolean }) {
   return (
     <div className="photo">
-      <svg viewBox="0 0 80 60" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SIL[tipo] ?? SIL.ligeiro }} />
+      {v?.temFoto
+        ? <img src={`/api/veiculos/${v.id}/foto?${grande ? "" : "tam=mini&"}v=${encodeURIComponent(v.fotoVersao ?? "")}`} alt="" loading="lazy" decoding="async" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+        : <svg viewBox="0 0 80 60" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SIL[tipo] ?? SIL.ligeiro }} />}
       {tag && <span className="tag chip">{TIPOS[tipo] ?? tipo}</span>}
     </div>
   );

@@ -24,7 +24,7 @@ export interface Veiculo {
   combustivel: string | null; dataMatricula: string | null; estado: string; proprietario: string | null; kmAtuais: number | null; horasAtuais: number | null;
   ensino: boolean; comandoDuplo: boolean; pesoBruto: number | null; tara: number | null; lugares: number | null; cilindrada: number | null;
   potenciaKw: number | null; pneus: string | null; tacografo: boolean; localizacao: string | null; vin: string | null; instrutorId: number | null; usaHoras: boolean;
-  temFoto: boolean; conjuntoAtivo?: { id: number; tratorId: number; reboqueId: number } | null;
+  temFoto: boolean; fotoVersao?: string | null; conjuntoAtivo?: { id: number; tratorId: number; reboqueId: number } | null;
   // so a gestao recebe:
   dataAquisicao?: string | null; valorAquisicao?: number | null; fornecedor?: string | null; cartaoCombustivel?: string | null;
   iucAplicavel?: boolean; ipoPeriodicidadeMeses?: number | null; seguroCobertoPeloTrator?: boolean; dataAbate?: string | null; notas?: string | null; versao?: number;
@@ -33,4 +33,12 @@ export interface Alerta { chave: string; tipo: string; rotulo: string; data: str
 export interface UtilizadorLinha {
   id: number; nome: string; email: string | null; username: string | null; perfil: Perfil; metodo: "access" | "senha"; ativo: boolean; escola: string | null;
   deveMudarSenha: boolean; ultimoAcesso: string | null; bloqueado: boolean; bloqueadoSegundos: number; cartaValidade: string | null; licencaInstrutorValidade: string | null;
+}
+
+/** Envio de ficheiros (multipart): o browser define o Content-Type com o separador certo. */
+export async function enviarFormulario<T>(caminho: string, form: FormData): Promise<T> {
+  const r = await fetch(`/api${caminho}`, { method: "POST", headers: { "x-requested-with": "frota" }, body: form, credentials: "same-origin" });
+  const dados = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!r.ok) throw new ErroApi(r.status, String(dados.erro ?? `Erro ${r.status}`), dados.codigo as string | undefined, dados);
+  return dados as T;
 }

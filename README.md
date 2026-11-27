@@ -8,18 +8,20 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 
 | Área | Estado |
 |---|---|
-| Esquema da base de dados (D1) e migrações | feito |
-| Autenticação da gestão (Cloudflare Access) e perfis | feito |
-| Login dos instrutores (utilizador e palavra-passe, sessões, bloqueio, primeiro acesso) | feito, com interface |
-| Campos por perfil, proteção CSRF, cabeçalhos de segurança | feito |
-| Veículos (listar, filtrar, criar, editar) | feito |
-| Conjuntos pesado + reboque (regras, histórico, auditoria) | feito |
-| Documentos em R2 (upload, versões, download autenticado) | feito |
-| Alertas de prazos e email diário (cron) | feito (falta configurar o envio de email) |
-| Interface com a marca da escola (PC e telemóvel): entrada, painel, veículos, ficha, utilizadores, cópias | feito (primeira versão) |
-| Formulários de criar e editar veículo, fotos, duplicar, lote, abater, importar Excel | por fazer |
-| Seguros, IUC, IPO, avarias, manutenção, combustível (API e ecrãs) | por fazer (as tabelas já existem) |
-| Importação dos 80 veículos por Excel | por fazer |
+| Esquema da base de dados e migrações (0000 a 0004) | feito |
+| Login da gestão (Cloudflare Access) e dos instrutores (utilizador e palavra-passe, sessões, bloqueio, primeiro acesso) | feito |
+| Campos por perfil, proteção contra pedidos de outros sites, cabeçalhos de segurança, verificação real dos ficheiros | feito |
+| Veículos: criar, editar, duplicar, edição em lote, abater e reativar, importar CSV, etiquetas QR | feito |
+| Fotografia do veículo (reduzida no telemóvel, miniaturas, cache longa) | feito |
+| Conjuntos pesado + reboque (regras, histórico) | API feita; falta o ecrã de gestão |
+| Seguros, IUC, IPO, manutenção, combustível, avarias, sinistros, multas | feito (API e ecrãs) |
+| Depósito de gasóleo (entradas, contagem física, anulações, custo médio, autonomia) | feito |
+| Instrutor: início, abastecimento, avaria, verificação diária, com envio sem rede | feito |
+| Documentos por veículo (PDF e imagens, versões, validade) | feito |
+| Alertas de prazos (incluindo multas) e painel | feito; falta ligar o envio de emails (Resend) |
+| Cópias de segurança semanais | feito |
+| Documentos a bordo disponíveis sem rede no telemóvel | por fazer |
+| Ecrã de auditoria | por fazer |
 
 ## Desenvolvimento local
 
