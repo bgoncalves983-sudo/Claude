@@ -1,4 +1,5 @@
 import { fazerBackup } from "./lib/backup";
+import { lembrarAvariasPendentes } from "./lib/notificar";
 import { hojeLisboa } from "./lib/seguranca";
 import { inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -12,6 +13,7 @@ import { avisosDoDia } from "./lib/prazos";
 export async function correrTarefasDiarias(env: Env) {
   const hoje = hojeLisboa();
   const r = await correrAlertas(env, hoje);
+  await lembrarAvariasPendentes(env);
   const diaSemana = new Date(hoje + "T12:00:00Z").getUTCDay(); // 1 = segunda-feira
   if (diaSemana === 1) await fazerBackup(env, `${hoje}-semanal`);
   return r;

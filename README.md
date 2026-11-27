@@ -20,6 +20,8 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 | Fotografias nas avarias e nos problemas da verificação (tirar ou escolher no telemóvel, até 5, também sem rede) | feito |
 | Instrutor com 0 ou 1 veículo atribuído pode registar noutro veículo; com 2 ou mais só nos seus | feito |
 | Documentos por veículo (PDF e imagens, versões, validade) | feito |
+| Avarias na gestão: indicador no menu (atualiza de 30 em 30 s), cartão no painel, página de avarias com tempo em aberto | feito |
+| Email à gestão assim que uma avaria é reportada, e lembrete diário das que passam 24 h sem resposta | feito; ativa-se com a chave do Resend |
 | Alertas de prazos (incluindo multas) e painel | feito; falta ligar o envio de emails (Resend) |
 | Cópias de segurança semanais | feito |
 | Documentos a bordo disponíveis sem rede no telemóvel | por fazer |

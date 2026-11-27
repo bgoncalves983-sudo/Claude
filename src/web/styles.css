@@ -146,3 +146,5 @@ label.f textarea { font-size: 16px; color: var(--ink); background: var(--surface
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb button { position: absolute; top: 2px; right: 2px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.65); color: #fff; font-size: 18px; line-height: 1; display: grid; place-items: center; }
 a.thumb { display: block; }
+.badge-n { margin-left: auto; background: var(--brand); color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; font-weight: 700; min-width: 20px; text-align: center; }
+.bottomnav a { position: relative; } .bottomnav .badge-n { position: absolute; top: 2px; left: calc(50% + 6px); margin: 0; }

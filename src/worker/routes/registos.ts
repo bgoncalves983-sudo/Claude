@@ -9,6 +9,7 @@ import { registarAuditoria } from "../lib/auditoria";
 import { custoMedio, obterDeposito } from "../lib/deposito";
 import { eUnico } from "../lib/erros";
 import { hojeLisboa } from "../lib/seguranca";
+import { notificarAvaria } from "../lib/notificar";
 import { fotosDasAvarias } from "./avariaFotos";
 import { idsVisiveis, podeRegistarNoutro } from "./veiculos";
 
@@ -205,6 +206,7 @@ export const avarias = criarRouter({
   criar: z.object({ descricao: z.string().trim().min(3).max(600), estado: z.enum(["reportada", "em_analise", "em_reparacao", "resolvida"]).optional(), clienteId: z.string().min(8).max(64).optional() }),
   // O instrutor so reporta: o estado e gerido pela gestao.
   preparar: async (d, { eu }) => ({ ...d, estado: eu.perfil === "instrutor" ? "reportada" : (d.estado ?? "reportada"), reportadoPor: eu.id }),
+  depois: async (l, { c }) => { c.executionCtx.waitUntil(notificarAvaria(c.env, l.id)); },
   enriquecer: async (linhas, eu, d1) => {
     const f = await fotosDasAvarias(d1, eu, linhas);
     return linhas.map((l) => ({ ...l, fotos: f.get(l.id) ?? [] }));
@@ -222,7 +224,8 @@ export const verificacoes = criarRouter({
   depois: async (l, { c, eu, veiculoId }) => {
     if (l.resultado !== "problema") return {};
     const falhas = (JSON.parse(l.itens) as { item: string; ok: boolean }[]).filter((i) => !i.ok).map((i) => i.item).join(", ");
-    await drizzle(c.env.DB).insert(avaria).values({ veiculoId, reportadoPor: eu.id, descricao: `Verificação diária: ${falhas}${l.notas ? `. ${l.notas}` : ""}`.slice(0, 600), estado: "reportada", clienteId: l.clienteId ? `v:${l.clienteId}` : null });
+    const [nova] = await drizzle(c.env.DB).insert(avaria).values({ veiculoId, reportadoPor: eu.id, descricao: `Verificação diária: ${falhas}${l.notas ? `. ${l.notas}` : ""}`.slice(0, 600), estado: "reportada", clienteId: l.clienteId ? `v:${l.clienteId}` : null }).returning({ id: avaria.id });
+    c.executionCtx.waitUntil(notificarAvaria(c.env, nova.id));
     return { avariaCriada: true };
   },
 });

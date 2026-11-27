@@ -276,6 +276,17 @@ let ultimaFoto = 0;
 for (let i = 0; i < 6; i++) ultimaFoto = (await subir(v2, null, fa(jp(2000), jp(300), { clienteId: "foto-lim-000" + i, avariaId: String(idAv) }), G)).status;
 ok(ultimaFoto === 422, "limite de 6 fotografias por avaria");
 
+console.log("Avarias de toda a frota (painel da gestao)");
+const geral = (await pedir("/api/avarias", { gestor: G })).j;
+const pneu = geral.find((x) => x.descricao === "Pneu furado");
+ok(pneu && pneu.matricula === "BB-22-CC" && pneu.reportadoPor === "Rui Costa" && pneu.fotos.length >= 2 && typeof pneu.horasEmAberto === "number", "lista geral: veiculo, quem reportou, fotos e tempo em aberto");
+ok(geral.every((x) => x.estado !== "resolvida"), "por omissao so mostra as avarias abertas");
+ok((await pedir("/api/avarias?estado=todas", { gestor: G })).j.some((x) => x.estado === "resolvida"), "com estado=todas inclui as resolvidas");
+const resumo = (await pedir("/api/avarias/resumo", { gestor: G })).j;
+ok(resumo.novas >= 1 && resumo.abertas >= resumo.novas && resumo.maisAntigaHoras !== null, "resumo para o indicador do menu");
+ok((await pedir("/api/avarias", { cookie: ck2b })).s === 403 && (await pedir("/api/avarias/resumo", { cookie: ck2b })).s === 403, "o instrutor nao ve a lista geral");
+ok((await pedir("/api/avarias")).s === 401, "sem sessao nao ve");
+
 console.log("Copias de seguranca");
 const A = "admin@test.pt";
 ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");

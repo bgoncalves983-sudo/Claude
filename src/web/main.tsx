@@ -4,6 +4,7 @@ import { api, ErroApi, type Eu } from "./api";
 import { Login, MudarSenha, SessaoExpirada } from "./pages/Acesso";
 import { Ficha } from "./pages/Ficha";
 import { Abastecer, Avaria, Inicio, Verificacao } from "./pages/Instrutor";
+import { Avarias, type ResumoAvarias } from "./pages/Avarias";
 import { Deposito } from "./pages/Deposito";
 import { FormVeiculo } from "./pages/FormVeiculo";
 import { Importar } from "./pages/Importar";
@@ -23,7 +24,7 @@ function useRota(): string[] {
   return r;
 }
 
-const NAV_GESTAO = [["", "Painel", "home"], ["veiculos", "Veículos", "car"], ["deposito", "Depósito", "fuel"], ["utilizadores", "Utilizadores", "users"]] as const;
+const NAV_GESTAO = [["", "Painel", "home"], ["avarias", "Avarias", "alert"], ["veiculos", "Veículos", "car"], ["deposito", "Depósito", "fuel"], ["utilizadores", "Utilizadores", "users"]] as const;
 const NAV_INSTRUTOR = [["", "Início", "home"], ["abastecer", "Abastecer", "fuel"], ["avaria", "Avaria", "alert"], ["verificacao", "Verificação", "check"]] as const;
 
 function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
@@ -33,12 +34,23 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
   const gestao = !instrutor && !consulta;
   const [pendentes, setPendentes] = useState(0);
   useEffect(() => aoMudar(setPendentes), []);
+  // A gestao ve de 30 em 30 segundos (e ao voltar ao separador) quantas avarias novas ha.
+  const [novas, setNovas] = useState(0);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (instrutor) return;
+    let vivo = true;
+    const ver = () => { if (document.visibilityState === "visible") api<ResumoAvarias>("/avarias/resumo").then((r) => vivo && setNovas(r.novas)).catch(() => {}); };
+    ver(); const t = setInterval(ver, 30_000); document.addEventListener("visibilitychange", ver);
+    return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", ver); };
+  }, [instrutor, tick]);
+  useEffect(() => { document.title = novas > 0 ? `(${novas}) Frota Radical` : "Frota Radical"; try { (navigator as any).setAppBadge?.(novas || undefined); } catch { /* sem suporte */ } }, [novas]);
   const nav: ReadonlyArray<readonly [string, string, string]> = instrutor ? NAV_INSTRUTOR
-    : consulta ? [["", "Veículos", "car"], ["deposito", "Depósito", "fuel"]]
+    : consulta ? [["", "Veículos", "car"], ["avarias", "Avarias", "alert"], ["deposito", "Depósito", "fuel"]]
     : eu.perfil === "admin" ? [...NAV_GESTAO, ["sistema", "Sistema", "shield"]] : NAV_GESTAO;
   const raiz = r[0] ?? "";
   const atual = instrutor && raiz === "veiculos" ? "" : consulta && raiz === "veiculos" ? "" : raiz;
-  const TITULOS: Record<string, string> = { "": instrutor ? "O meu veículo" : consulta ? "Veículos" : "Painel", veiculos: "Veículos", deposito: "Depósito de gasóleo", utilizadores: "Utilizadores", sistema: "Sistema", abastecer: "Registar abastecimento", avaria: "Reportar avaria", verificacao: "Verificação diária", qr: "Etiquetas QR" };
+  const TITULOS: Record<string, string> = { avarias: "Avarias", "": instrutor ? "O meu veículo" : consulta ? "Veículos" : "Painel", veiculos: "Veículos", deposito: "Depósito de gasóleo", utilizadores: "Utilizadores", sistema: "Sistema", abastecer: "Registar abastecimento", avaria: "Reportar avaria", verificacao: "Verificação diária", qr: "Etiquetas QR" };
   let titulo = TITULOS[raiz] ?? "Frota";
   if (raiz === "veiculos") titulo = r[1] === "novo" ? "Novo veículo" : r[1] === "importar" ? "Importar veículos" : r[1] && r[2] === "editar" ? "Editar veículo" : r[1] && r[2] === "duplicar" ? "Duplicar veículo" : r[1] ? "Ficha do veículo" : "Veículos";
 
@@ -51,6 +63,7 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
   else if (raiz === "veiculos" && r[1] && r[2] === "duplicar" && gestao) pagina = <FormVeiculo modo="duplicar" id={r[1]} />;
   else if (raiz === "veiculos" && r[1]) pagina = <Ficha id={r[1]} eu={eu} />;
   else if (raiz === "veiculos" || (consulta && !raiz)) pagina = <Veiculos eu={eu} />;
+  else if (raiz === "avarias") pagina = <Avarias gestao={gestao} aoAlterar={() => setTick((x) => x + 1)} />;
   else if (raiz === "deposito") pagina = <Deposito gestao={gestao} />;
   else if (raiz === "qr" && gestao) pagina = <QR />;
   else if (raiz === "utilizadores" && gestao) pagina = <Utilizadores eu={eu} />;
@@ -58,7 +71,7 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
   else pagina = <Painel />;
 
   const ligacoes = (cls?: string) => nav.map(([h, t, i]) => (
-    <a key={h} href={`#/${h}`} className={cls} aria-current={atual === h ? "page" : undefined}><Icon n={i} s={cls ? 22 : 18} />{cls ? <span>{t}</span> : t}</a>));
+    <a key={h} href={`#/${h}`} className={cls} aria-current={atual === h ? "page" : undefined}><Icon n={i} s={cls ? 22 : 18} />{cls ? <span>{t}</span> : t}{h === "avarias" && novas > 0 && <span className="badge-n" aria-label={`${novas} novas`}>{novas}</span>}</a>));
   const iniciais = eu.nome.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 
   return (
