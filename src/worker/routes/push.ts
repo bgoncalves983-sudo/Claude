@@ -6,13 +6,13 @@ import { z } from "zod";
 import { exigirPerfil } from "../auth";
 import { pushSubscricao } from "../db/schema";
 import type { AppEnv } from "../env";
-import { deB64u } from "../lib/push";
+import { chavesValidas, deB64u } from "../lib/push";
 
 /** Subscricao de dispositivos da gestao as notificacoes push. */
 export const pushRota = new Hono<AppEnv>();
 pushRota.use("*", exigirPerfil("admin", "gestor"));
 
-pushRota.get("/chave", (c) => c.json({ chave: c.env.VAPID_PUBLIC_KEY ?? null }));
+pushRota.get("/chave", (c) => c.json({ chave: chavesValidas(c.env) ? c.env.VAPID_PUBLIC_KEY! : null, motivo: chavesValidas(c.env) ? null : "As chaves das notificações não estão configuradas ou estão mal registadas." }));
 
 const sub = z.object({ endpoint: z.string().url().max(600), keys: z.object({ p256dh: z.string().min(80).max(120), auth: z.string().min(16).max(40) }) });
 

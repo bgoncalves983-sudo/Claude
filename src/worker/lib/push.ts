@@ -60,9 +60,14 @@ async function enviarUm(env: Env, s: { endpoint: string; p256dh: string; auth: s
   } catch { return "erro"; }
 }
 
+/** As chaves so servem se tiverem o formato certo (publica: 65 bytes; privada: 32). Evita notificacoes "ativas" que nunca chegam por uma chave mal colada. */
+export function chavesValidas(env: Env): boolean {
+  try { return !!env.VAPID_PUBLIC_KEY && !!env.VAPID_PRIVATE_KEY && deB64u(env.VAPID_PUBLIC_KEY).length === 65 && deB64u(env.VAPID_PRIVATE_KEY).length === 32; } catch { return false; }
+}
+
 /** Envia a todos os dispositivos da gestao; remove os que ja nao existem. Nunca falha quem chama. */
 export async function notificarGestaoPush(env: Env, m: Mensagem): Promise<number> {
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return 0;
+  if (!chavesValidas(env)) return 0;
   try {
     const db = drizzle(env.DB);
     const gestao = await db.select({ id: utilizador.id }).from(utilizador).where(inArray(utilizador.perfil, ["gestor", "admin"]));

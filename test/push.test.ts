@@ -2,9 +2,21 @@ import { createECDH, createPublicKey, randomBytes, verify } from "node:crypto";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error biblioteca de referencia sem tipos
 import ece from "http_ece";
-import { autorizacaoVapid, b64u, cifrar, deB64u } from "../src/worker/lib/push";
+import { autorizacaoVapid, b64u, chavesValidas, cifrar, deB64u } from "../src/worker/lib/push";
 
 // Verifica a nossa cifra contra uma biblioteca independente (http_ece, a usada pelo "web-push").
+describe("chaves das notificacoes", () => {
+  const par = () => { const e = createECDH("prime256v1"); e.generateKeys(); return { pub: b64u(e.getPublicKey()), priv: b64u(e.getPrivateKey()) }; };
+  const env = (x: object) => x as never;
+  it("aceita chaves geradas pelo script", () => { const k = par(); expect(chavesValidas(env({ VAPID_PUBLIC_KEY: k.pub, VAPID_PRIVATE_KEY: k.priv }))).toBe(true); });
+  it("recusa chaves em falta, texto qualquer, ou trocadas entre si", () => {
+    const k = par();
+    expect(chavesValidas(env({}))).toBe(false);
+    expect(chavesValidas(env({ VAPID_PUBLIC_KEY: "isto nao e uma chave", VAPID_PRIVATE_KEY: "nem isto" }))).toBe(false);
+    expect(chavesValidas(env({ VAPID_PUBLIC_KEY: k.priv, VAPID_PRIVATE_KEY: k.pub }))).toBe(false);
+  });
+});
+
 describe("notificacoes push", () => {
   const cliente = () => {
     const ecdh = createECDH("prime256v1");

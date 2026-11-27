@@ -16,8 +16,8 @@ export async function estadoPush(): Promise<EstadoPush> {
 }
 
 export async function ativarPush(): Promise<void> {
-  const { chave } = await api<{ chave: string | null }>("/push/chave");
-  if (!chave) throw new Error("As notificações ainda não estão configuradas no servidor.");
+  const { chave, motivo } = await api<{ chave: string | null; motivo: string | null }>("/push/chave");
+  if (!chave) throw new Error(motivo ?? "As notificações ainda não estão configuradas no servidor.");
   if ((await Notification.requestPermission()) !== "granted") throw new Error("Autorização recusada. Pode permitir nas definições do browser.");
   const reg = await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: paraBytes(chave) }));
