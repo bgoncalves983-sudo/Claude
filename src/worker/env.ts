@@ -25,4 +25,4 @@ export interface Utilizador {
   username: string | null;
 }
 
-export type AppEnv = { Bindings: Env; Variables: { user: Utilizador } };
+export type AppEnv = { Bindings: Env; Variables: { user: Utilizador; naoAssociado?: boolean } };

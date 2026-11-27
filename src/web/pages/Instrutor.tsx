@@ -5,25 +5,70 @@ import { Campo, num } from "../form";
 import { enviarOuGuardar } from "../lib/fila";
 import { Carregar, ChipEstado, Foto, Icon, Matricula, useApi } from "../ui";
 
-function useMeuVeiculo() {
-  const r = useApi<Veiculo[]>("/veiculos");
-  return { ...r, v: r.dados?.[0] ?? null };
+interface Para { atribuidos: Veiculo[]; podeEscolherOutro: boolean; outros: Veiculo[] }
+const CHAVE = "veiculo-escolhido";
+const lerEscolha = () => { try { return Number(localStorage.getItem(CHAVE)) || null; } catch { return null; } };
+
+/** O veiculo onde o instrutor vai registar: um dos seus atribuidos ou, se a regra o permitir, outro. */
+function useEscolha() {
+  const r = useApi<Para>("/veiculos/para-registo");
+  const [id, setId] = useState<number | null>(lerEscolha);
+  const d = r.dados;
+  const todos = d ? [...d.atribuidos, ...(d.podeEscolherOutro ? d.outros : [])] : [];
+  const v = todos.find((x) => x.id === id) ?? d?.atribuidos[0] ?? null;
+  const atribuido = !!v && !!d?.atribuidos.some((a) => a.id === v.id);
+  const escolher = (novo: number) => { setId(novo); try { localStorage.setItem(CHAVE, String(novo)); } catch { /* sem armazenamento: so nesta sessao */ } };
+  return { ...r, v, atribuido, escolher };
+}
+type Escolha = ReturnType<typeof useEscolha>;
+
+/** Veiculo atual e painel para o trocar. Com 2 ou mais atribuidos so mostra os seus. */
+function Seletor({ e }: { e: Escolha }) {
+  const d = e.dados;
+  const [aberto, setAberto] = useState(false);
+  const [q, setQ] = useState("");
+  if (!d) return null;
+  const aberta = aberto || !e.v;
+  const outros = d.outros.filter((x) => `${x.matricula} ${x.marca ?? ""} ${x.modelo ?? ""}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
+  const pode = d.atribuidos.length > 1 || d.podeEscolherOutro;
+  const escolher = (id: number) => { e.escolher(id); setAberto(false); setQ(""); };
+  return (
+    <div className="card form" style={{ maxWidth: 560 }}>
+      {e.v && <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <Matricula m={e.v.matricula} /><b style={{ flex: 1, minWidth: 120 }}>{[e.v.marca, e.v.modelo].filter(Boolean).join(" ")}</b>
+        {pode && <button type="button" className="btn" onClick={() => setAberto((x) => !x)}>{aberta ? "Fechar" : "Trocar veículo"}</button>}</div>}
+      {e.v && !e.atribuido && <div className="warnbox">Este veículo não está atribuído a si. O registo fica identificado para o responsável de frota.</div>}
+      {aberta && <>
+        {d.atribuidos.length >= 2 && <div className="note">Tem mais de um veículo atribuído. Escolha o que vai usar.</div>}
+        {d.atribuidos.length === 0 && <div className="note">Ainda não tem veículo atribuído. Escolha o veículo que vai usar.</div>}
+        {d.atribuidos.length === 1 && d.podeEscolherOutro && <div className="note">Vai usar outro veículo? Procure pela matrícula.</div>}
+        {d.atribuidos.length > 0 && <div className="rows">{d.atribuidos.map((x) => (
+          <button key={x.id} type="button" className="btn" style={{ justifyContent: "flex-start", gap: 10 }} aria-pressed={e.v?.id === x.id} onClick={() => escolher(x.id)}><Matricula m={x.matricula} />{[x.marca, x.modelo].filter(Boolean).join(" ")}<span className="chip ok" style={{ marginLeft: "auto" }}>Atribuído</span></button>))}</div>}
+        {d.podeEscolherOutro && <>
+          <label className="search"><span className="muted" aria-hidden="true">⌕&nbsp;</span><input value={q} onChange={(x) => setQ(x.target.value)} placeholder="Matrícula ou marca" aria-label="Procurar outro veículo" /></label>
+          <div className="rows">{outros.length === 0 && <span className="muted">Nenhum veículo encontrado.</span>}{outros.map((x) => (
+            <button key={x.id} type="button" className="btn" style={{ justifyContent: "flex-start", gap: 10 }} aria-pressed={e.v?.id === x.id} onClick={() => escolher(x.id)}><Matricula m={x.matricula} />{[x.marca, x.modelo].filter(Boolean).join(" ")}</button>))}</div></>}
+      </>}
+    </div>
+  );
 }
 
 export function Inicio({ eu }: { eu: Eu }) {
-  const { dados, erro, v } = useMeuVeiculo();
+  const e = useEscolha();
+  const { dados, erro, v } = e;
   return (
     <Carregar erro={erro} dados={dados}>
-      {!v && <div className="card"><h3>Olá, {eu.nome.split(" ")[0]}</h3><p className="muted" style={{ margin: 0 }}>Ainda não tem um veículo atribuído. Fale com o responsável de frota.</p></div>}
+      <Seletor e={e} />
       {v && <>
-        <a href={`#/veiculos/${v.id}`} className="vcard" style={{ maxWidth: 560 }}>
+        {(e.atribuido ? <a href={`#/veiculos/${v.id}`} className="vcard" style={{ maxWidth: 560 }}>
           <Foto tipo={v.tipo} v={v} grande />
           <div className="vbody"><div className="vmeta"><Matricula m={v.matricula} /><ChipEstado e={v.estado} /></div><b>{[v.marca, v.modelo].filter(Boolean).join(" ")}</b>
             <span className="muted">{v.usaHoras ? `${v.horasAtuais ?? "—"} h` : `${v.kmAtuais?.toLocaleString("pt-PT") ?? "—"} km`}{v.combustivel ? ` · ${v.combustivel}` : ""}</span></div>
-        </a>
+        </a> : null)}
         <div className="card" style={{ display: "grid", gap: 10, maxWidth: 560 }}><b>Verificação diária do veículo</b><a className="btn primary big" href="#/verificacao"><Icon n="check" s={20} />Fazer verificação</a></div>
         <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", maxWidth: 560 }}><a className="btn big" href="#/abastecer"><Icon n="fuel" s={20} />Abastecer</a><a className="btn big" href="#/avaria"><Icon n="alert" s={20} />Avaria</a></div>
       </>}
+      {!v && <p className="muted">Olá, {eu.nome.split(" ")[0]}. Escolha acima o veículo para começar.</p>}
     </Carregar>
   );
 }
@@ -39,14 +84,15 @@ function Resultado({ pendente, ok }: { pendente: boolean; ok: string }) {
 }
 
 export function Abastecer() {
-  const { dados, erro, v } = useMeuVeiculo();
+  const e = useEscolha();
+  const { dados, erro, v } = e;
   const [origem, setOrigem] = useState<"deposito" | "posto">("deposito");
   const [f, setF] = useState<Record<string, string>>({});
   const [res, setRes] = useState<{ pendente: boolean; aviso?: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const s = (k: string) => (x: string) => setF((o) => ({ ...o, [k]: x }));
-  async function enviar(e: FormEvent) {
-    e.preventDefault(); if (!v) return; setErr(null);
+  async function enviar(ev: FormEvent) {
+    ev.preventDefault(); if (!v) return; setErr(null);
     try {
       const r = await enviarOuGuardar<{ aviso?: string }>(`/veiculos/${v.id}/abastecimentos`, { origem, litros: num(f.litros ?? ""), [v.usaHoras ? "horas" : "km"]: num(f.km ?? ""), valor: origem === "posto" ? num(f.valor ?? "") : null, posto: origem === "posto" ? f.posto || null : null }, `Abastecimento ${v.matricula}`);
       setRes({ pendente: r.pendente, aviso: r.resposta?.aviso });
@@ -55,7 +101,8 @@ export function Abastecer() {
   if (res) return <><Resultado pendente={res.pendente} ok="Abastecimento guardado." />{res.aviso && <div className="warnbox">{res.aviso}</div>}</>;
   return (
     <Carregar erro={erro} dados={dados}>
-      {!v ? <div className="card">Sem veículo atribuído.</div> : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
+      <Seletor e={e} />
+      {!v ? null : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
         <div className="note"><Matricula m={v.matricula} /> {v.marca} {v.modelo}. Último registo: {v.usaHoras ? `${v.horasAtuais ?? "—"} h` : `${v.kmAtuais?.toLocaleString("pt-PT") ?? "—"} km`}</div>
         <div className="chips" role="group" aria-label="Onde abasteceu"><button type="button" aria-pressed={origem === "deposito"} onClick={() => setOrigem("deposito")}>Depósito do parque</button><button type="button" aria-pressed={origem === "posto"} onClick={() => setOrigem("posto")}>Posto externo</button></div>
         <div className="card form"><div className="fields">
@@ -71,18 +118,20 @@ export function Abastecer() {
 }
 
 export function Avaria() {
-  const { dados, erro, v } = useMeuVeiculo();
+  const e = useEscolha();
+  const { dados, erro, v } = e;
   const [descricao, setDescricao] = useState("");
   const [res, setRes] = useState<{ pendente: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  async function enviar(e: FormEvent) {
-    e.preventDefault(); if (!v) return; setErr(null);
+  async function enviar(ev: FormEvent) {
+    ev.preventDefault(); if (!v) return; setErr(null);
     try { const r = await enviarOuGuardar(`/veiculos/${v.id}/avarias`, { descricao }, `Avaria ${v.matricula}`); setRes({ pendente: r.pendente }); } catch (x) { setErr((x as ErroApi).message); }
   }
   if (res) return <Resultado pendente={res.pendente} ok="Avaria reportada ao responsável de frota." />;
   return (
     <Carregar erro={erro} dados={dados}>
-      {!v ? <div className="card">Sem veículo atribuído.</div> : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
+      <Seletor e={e} />
+      {!v ? null : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
         <div className="note"><Matricula m={v.matricula} /> {v.marca} {v.modelo}</div>
         <div className="card form"><Campo id="d" label="O que se passa?" area obrig valor={descricao} onChange={setDescricao} largo /></div>
         {err && <div className="errbox" role="alert">{err}</div>}
@@ -94,22 +143,24 @@ export function Avaria() {
 
 const ITENS = ["Pneus e pressão", "Luzes e sinalização", "Óleo e líquidos", "Travões", "Espelhos e vidros", "Documentos a bordo", "Limpeza"];
 export function Verificacao() {
-  const { dados, erro, v } = useMeuVeiculo();
+  const e = useEscolha();
+  const { dados, erro, v } = e;
   const [estado, setEstado] = useState<Record<string, boolean>>(() => Object.fromEntries(ITENS.map((i) => [i, true])));
   const [notas, setNotas] = useState("");
   const [res, setRes] = useState<{ pendente: boolean; problema: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const falhas = ITENS.filter((i) => !estado[i]);
   useEffect(() => { setErr(null); }, [estado]);
-  async function enviar(e: FormEvent) {
-    e.preventDefault(); if (!v) return; setErr(null);
+  async function enviar(ev: FormEvent) {
+    ev.preventDefault(); if (!v) return; setErr(null);
     if (falhas.length && notas.trim().length < 3) return setErr("Descreva o problema nas notas.");
     try { const r = await enviarOuGuardar(`/veiculos/${v.id}/verificacoes`, { itens: ITENS.map((i) => ({ item: i, ok: estado[i] })), notas: notas || null }, `Verificação ${v.matricula}`); setRes({ pendente: r.pendente, problema: falhas.length > 0 }); } catch (x) { setErr((x as ErroApi).message); }
   }
   if (res) return <Resultado pendente={res.pendente} ok={res.problema ? "Verificação enviada. Foi criada uma avaria para o responsável de frota." : "Verificação concluída. Bom trabalho!"} />;
   return (
     <Carregar erro={erro} dados={dados}>
-      {!v ? <div className="card">Sem veículo atribuído.</div> : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
+      <Seletor e={e} />
+      {!v ? null : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
         <div className="note"><Matricula m={v.matricula} /> Antes da primeira aula. Demora menos de um minuto.</div>
         <div className="card">{ITENS.map((i) => (
           <div className="chk" key={i}><b>{i}</b>

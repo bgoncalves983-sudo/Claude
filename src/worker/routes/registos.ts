@@ -9,7 +9,7 @@ import { registarAuditoria } from "../lib/auditoria";
 import { custoMedio, obterDeposito } from "../lib/deposito";
 import { eUnico } from "../lib/erros";
 import { hojeLisboa } from "../lib/seguranca";
-import { idsVisiveis } from "./veiculos";
+import { idsVisiveis, podeRegistarNoutro } from "./veiculos";
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data no formato AAAA-MM-DD");
 const GESTAO = ["admin", "gestor"] as const;
@@ -46,7 +46,12 @@ function criarRouter(r: Recurso) {
     if (!permitidos.includes(eu.perfil)) return c.json({ erro: "Sem permissao" }, 403);
     const vid = Number(c.req.param("veiculoId"));
     const vis = await idsVisiveis(c.env.DB, eu);
-    if (vis !== "todos" && !vis.includes(vid)) return c.json({ erro: "Nao encontrado" }, 404);
+    if (vis !== "todos" && !vis.includes(vid)) {
+      // Excecao: registar (nunca ler) noutro veiculo, se o instrutor tiver 0 ou 1 veiculo atribuido.
+      const registo = metodo === "POST" && eu.perfil === "instrutor" && ["abastecimentos", "avarias", "verificacoes"].includes(r.nome);
+      if (!registo || !(await podeRegistarNoutro(c.env.DB, eu, vid))) return c.json({ erro: "Nao encontrado" }, 404);
+      c.set("naoAssociado", true);
+    }
     await next();
   });
 
@@ -73,7 +78,7 @@ function criarRouter(r: Recurso) {
     try {
       const [nova] = (await db.insert(r.tabela).values(dados).returning()) as any[];
       const extra = (await r.depois?.(nova, { c, eu, veiculoId })) ?? {};
-      await registarAuditoria(c.env.DB, eu.id, "criar", r.nome, nova.id, { veiculoId });
+      await registarAuditoria(c.env.DB, eu.id, "criar", r.nome, nova.id, { veiculoId, ...(c.get("naoAssociado") ? { naoAssociado: true } : {}) });
       return c.json({ registo: limpar(nova, eu), ...extra }, 201);
     } catch (e) {
       if (eUnico(e)) return c.json({ erro: "Ja existe um registo igual." }, 409);

@@ -67,6 +67,39 @@ export async function idsVisiveis(d1: D1Database, u: Utilizador): Promise<number
   return [...ids, ...reboques.map((r) => r.id)];
 }
 
+/** Veiculos atribuidos ao instrutor (nao abatidos). */
+export async function veiculosAtribuidos(d1: D1Database, utilizadorId: number) {
+  return drizzle(d1).select().from(veiculo).where(and(eq(veiculo.instrutorId, utilizadorId), sql`${veiculo.estado} != 'abatido'`)).orderBy(veiculo.matricula);
+}
+/**
+ * Regra: um instrutor com 0 ou 1 veiculo atribuido pode registar noutro veiculo ativo (a associacao pode nao estar feita a tempo).
+ * Com 2 ou mais atribuidos so usa os seus.
+ */
+export async function podeEscolherOutro(d1: D1Database, u: Utilizador): Promise<boolean> {
+  return (await veiculosAtribuidos(d1, u.id)).length <= 1;
+}
+export async function podeRegistarNoutro(d1: D1Database, u: Utilizador, veiculoId: number): Promise<boolean> {
+  if (!(await podeEscolherOutro(d1, u))) return false;
+  const [v] = await drizzle(d1).select({ estado: veiculo.estado, ensino: veiculo.ensino }).from(veiculo).where(eq(veiculo.id, veiculoId)).limit(1);
+  return !!v && v.estado === "ativo" && v.ensino;
+}
+
+// Para o instrutor escolher o veiculo onde vai registar (abastecimento, avaria, verificacao).
+veiculos.get("/para-registo", async (c) => {
+  const eu = c.get("user");
+  if (eu.perfil !== "instrutor") return c.json({ erro: "Sem permissao" }, 403);
+  const atribuidos = await veiculosAtribuidos(c.env.DB, eu.id);
+  const outro = atribuidos.length <= 1;
+  const outros = outro
+    ? await drizzle(c.env.DB).select().from(veiculo).where(and(eq(veiculo.estado, "ativo"), eq(veiculo.ensino, true), sql`${veiculo.instrutorId} IS NOT ${eu.id}`)).orderBy(veiculo.matricula)
+    : [];
+  return c.json({
+    atribuidos: atribuidos.map((v) => veiculoParaPerfil(v, "instrutor")),
+    podeEscolherOutro: outro,
+    outros: outros.map((v) => veiculoParaPerfil(v, "instrutor")),
+  });
+});
+
 veiculos.get("/", async (c) => {
   const db = drizzle(c.env.DB);
   const { tipo, estado, categoria, proprietario, q } = c.req.query();
