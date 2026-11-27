@@ -345,6 +345,30 @@ ok(recebidos.filter((x) => x.url === "/push/morta").length === 1, "um dispositiv
 ok((await pedir("/api/push/remover", { metodo: "POST", gestor: A, corpo: { endpoint: "http://localhost:9911/push/1" } })).s === 200, "dispositivo pode desativar as notificacoes");
 servidor.close();
 
+console.log("Documentos de bordo e emails");
+const fdoc = (tipo, nome, vid) => { const f = new FormData(); f.append("file", new Blob([new TextEncoder().encode("%PDF-1.4 " + nome)], { type: "application/pdf" }), nome + ".pdf"); f.append("tipo", tipo); f.append("veiculoId", String(vid)); return f; };
+const subirDoc = async (tipo, nome, vid) => (await (await fetch(BASE + "/api/documentos", { method: "POST", headers: { "x-dev-user": G, "x-requested-with": "frota" }, body: fdoc(tipo, nome, vid) })).json());
+const dDua = await subirDoc("dua", "dua", v2);
+const dFat = await subirDoc("fatura", "fatura-com-valores", v2);
+const dApo = await subirDoc("apolice", "apolice", v2);
+const listaBordo = (await pedir(`/api/documentos?veiculoId=${v2}`, { cookie: ck2b })).j;
+ok(listaBordo.length >= 2 && !listaBordo.some((d) => d.tipo === "fatura") && listaBordo.every((d) => ["dua", "apolice"].includes(d.tipo)), "o instrutor so ve os documentos de bordo (DUA, apolice), nao as faturas");
+ok((await fetch(BASE + `/api/documentos/${dFat.id}/ficheiro`, { headers: { cookie: ck2b } })).status === 404, "e nao abre uma fatura nem por ligacao direta");
+ok((await fetch(BASE + `/api/documentos/${dDua.id}/ficheiro`, { headers: { cookie: ck2b } })).status === 200, "abre o DUA do seu veiculo");
+ok((await pedir(`/api/documentos?veiculoId=${v2}`, { gestor: G })).j.length >= 3, "a gestao continua a ver todos");
+// veiculo alheio: Ana (2 atribuidos) nao ve; Rui (1 atribuido) ve so os documentos de bordo de outro veiculo ativo
+ok((await pedir(`/api/documentos?veiculoId=${v2}`, { cookie: ckA })).s === 403, "um instrutor com 2 veiculos nao ve documentos de um veiculo alheio");
+const outroV = (await pedir("/api/veiculos", { metodo: "POST", gestor: G, corpo: { matricula: "zz-77-yy", tipo: "ligeiro" } })).j.id;
+await subirDoc("dua", "dua-outro", outroV); await subirDoc("fatura", "fatura-outro", outroV);
+const alheio = await pedir(`/api/documentos?veiculoId=${outroV}`, { cookie: ck2b });
+ok(alheio.s === 200 && alheio.j.length === 1 && alheio.j[0].tipo === "dua", "com 1 veiculo atribuido, ve o DUA do veiculo que vai usar (e so esse tipo)");
+ok((await pedir("/api/documentos", { cookie: ck2b })).s === 403, "documentos da escola continuam so para a gestao");
+const est = (await pedir("/api/sistema/estado", { gestor: A })).j;
+ok(est.email.configurado === false && typeof est.email.destinatarios === "number" && est.push.configurado === true, "estado das ligacoes (emails por configurar neste teste)");
+ok((await pedir("/api/sistema/estado", { gestor: G })).s === 403, "so os administradores veem o estado do sistema");
+const teste = await pedir("/api/sistema/email-teste", { metodo: "POST", gestor: A });
+ok(teste.s === 502 && /RESEND_API_KEY/.test(teste.j.detalhe), "email de teste sem chave: explica o que falta");
+
 console.log("Copias de seguranca");
 ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");
 const bk = await pedir("/api/backups", { metodo: "POST", gestor: A });

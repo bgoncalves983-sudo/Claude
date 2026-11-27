@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { TIPOS_DOCUMENTO } from "../../shared/dominio";
@@ -7,7 +7,7 @@ import { documento } from "../db/schema";
 import type { AppEnv } from "../env";
 import { registarAuditoria } from "../lib/auditoria";
 import { ler, tipoReal } from "../lib/ficheiros";
-import { idsVisiveis } from "./veiculos";
+import { idsVisiveis, podeRegistarNoutro } from "./veiculos";
 
 export const documentos = new Hono<AppEnv>();
 
@@ -16,24 +16,30 @@ const TIPOS_FICHEIRO = ["application/pdf", "image/jpeg", "image/png", "image/web
 
 const nomeSeguro = (n: string) => n.replace(/[^\w.\-]+/g, "_").slice(-80) || "ficheiro";
 
-async function podeVer(c: { env: AppEnv["Bindings"]; get: (k: "user") => AppEnv["Variables"]["user"] }, veiculoId: number | null) {
+// Documentos que o instrutor pode ter a bordo (para mostrar as autoridades). Faturas e outros documentos com valores ficam fora.
+export const TIPOS_DE_BORDO = ["dua", "apolice", "recibo_seguro", "ipo"] as const;
+
+/** Quem ve o que: gestao e consulta tudo; o instrutor so os documentos de bordo dos seus veiculos (e do que estiver a usar, pela regra do veiculo alheio). */
+async function acesso(c: { env: AppEnv["Bindings"]; get: (k: "user") => AppEnv["Variables"]["user"] }, veiculoId: number | null): Promise<{ ver: boolean; soBordo: boolean }> {
   const u = c.get("user");
-  if (u.perfil !== "instrutor") return true;
-  if (veiculoId === null) return false; // documentos da escola: so gestao/consulta
+  if (u.perfil !== "instrutor") return { ver: true, soBordo: false };
+  if (veiculoId === null) return { ver: false, soBordo: true }; // documentos da escola: so gestao/consulta
   const v = await idsVisiveis(c.env.DB, u);
-  return v === "todos" || v.includes(veiculoId);
+  if (v === "todos" || v.includes(veiculoId)) return { ver: true, soBordo: true };
+  return { ver: await podeRegistarNoutro(c.env.DB, u, veiculoId), soBordo: true };
 }
 
 // Lista (por veiculo; sem veiculoId = documentos da escola).
 documentos.get("/", async (c) => {
   const vid = c.req.query("veiculoId");
   const veiculoId = vid ? Number(vid) : null;
-  if (!(await podeVer(c, veiculoId))) return c.json({ erro: "Sem permissão" }, 403);
+  const ac = await acesso(c, veiculoId);
+  if (!ac.ver) return c.json({ erro: "Sem permissão" }, 403);
   const db = drizzle(c.env.DB);
   const linhas = await db
     .select()
     .from(documento)
-    .where(veiculoId === null ? isNull(documento.veiculoId) : eq(documento.veiculoId, veiculoId))
+    .where(and(veiculoId === null ? isNull(documento.veiculoId) : eq(documento.veiculoId, veiculoId), ac.soBordo ? inArray(documento.tipo, [...TIPOS_DE_BORDO]) : undefined))
     .orderBy(desc(documento.criadoEm));
   return c.json(linhas);
 });
@@ -90,7 +96,8 @@ documentos.post("/", soGestao, async (c) => {
 documentos.get("/:id/ficheiro", async (c) => {
   const db = drizzle(c.env.DB);
   const [d] = await db.select().from(documento).where(eq(documento.id, Number(c.req.param("id")))).limit(1);
-  if (!d || !(await podeVer(c, d.veiculoId))) return c.json({ erro: "Não encontrado" }, 404);
+  const ac = d ? await acesso(c, d.veiculoId) : null;
+  if (!d || !ac!.ver || (ac!.soBordo && !(TIPOS_DE_BORDO as readonly string[]).includes(d.tipo))) return c.json({ erro: "Não encontrado" }, 404);
   const obj = await c.env.DOCS.get(d.r2Key);
   if (!obj) return c.json({ erro: "Ficheiro em falta no armazenamento" }, 404);
   return new Response(obj.body, {

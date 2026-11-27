@@ -1,6 +1,7 @@
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { api, ErroApi, type Eu } from "./api";
+import { api, ErroApi, limparCacheLocal, type Eu } from "./api";
+import { limparDocsLocais } from "./lib/docs";
 import { Login, MudarSenha, SessaoExpirada } from "./pages/Acesso";
 import { Ficha } from "./pages/Ficha";
 import { Abastecer, Avaria, Inicio, UsarVeiculo, Verificacao } from "./pages/Instrutor";
@@ -102,17 +103,21 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
 function App() {
   const [eu, setEu] = useState<Eu | null | undefined>(undefined);
   const [senhaTemp, setSenhaTemp] = useState("");
+  const [semRede, setSemRede] = useState(false);
   const gestaoHost = location.hostname.startsWith("gestao.");
 
   const carregar = useCallback(() => {
-    api<Eu>("/me").then(setEu, (e: ErroApi) => { if (e.estado === 401 || e.estado === 403) setEu(null); else throw e; });
+    setSemRede(false);
+    api<Eu>("/me").then(setEu, (e: ErroApi) => { if (e.estado === 401 || e.estado === 403) setEu(null); else setSemRede(true); });
   }, []);
   useEffect(carregar, [carregar]);
+  useEffect(() => { addEventListener("online", carregar); return () => removeEventListener("online", carregar); }, [carregar]);
 
+  if (eu === undefined && semRede) return <div className="full"><div className="lcard"><Logo vertical /><h1>Sem ligação</h1><p>Não foi possível ligar. Verifique a rede e tente de novo. Se já entrou antes neste telemóvel, os seus documentos de bordo continuam disponíveis depois de abrir a aplicação com rede uma vez.</p><button className="btn primary big" onClick={carregar}>Tentar de novo</button></div></div>;
   if (eu === undefined) return <div className="full"><div className="skel" style={{ width: 200, height: 24 }} aria-busy="true" /></div>;
   if (eu === null) return gestaoHost ? <SessaoExpirada /> : <Login aoEntrar={(s) => { setSenhaTemp(s); carregar(); }} />;
   if (eu.deveMudarSenha) return <MudarSenha senhaAtual={senhaTemp} aoConcluir={() => { setSenhaTemp(""); carregar(); }} />;
-  return <Shell eu={eu} sair={async () => { await api("/auth/logout", { metodo: "POST" }).catch(() => {}); setSenhaTemp(""); setEu(null); location.hash = "#/"; }} />;
+  return <Shell eu={eu} sair={async () => { await api("/auth/logout", { metodo: "POST" }).catch(() => {}); limparCacheLocal(); await limparDocsLocais(); setSenhaTemp(""); setEu(null); location.hash = "#/"; }} />;
 }
 
 iniciarSincronizacao();

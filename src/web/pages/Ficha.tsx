@@ -4,6 +4,7 @@ import { Campo } from "../form";
 import { reduzir } from "../lib/imagem";
 import { Carregar, ChipDias, ChipEstado, eur, Foto, fdata, Icon, TIPOS, useApi } from "../ui";
 import { Documentos } from "./Documentos";
+import { DocumentosBordo } from "./DocumentosBordo";
 import { Registos } from "./Registos";
 
 type R = Record<string, any>;
@@ -140,7 +141,7 @@ export function Ficha({ id, eu }: { id: string; eu: Eu }) {
           {tab === "comb" && <Registos veiculoId={v.id} recurso="abastecimentos" gestao={gestao} podeCriar={gestao} />}
           {tab === "avarias" && <Registos veiculoId={v.id} recurso="avarias" gestao={gestao} podeCriar={false} />}
           {tab === "ocorr" && <div className="grid"><Registos veiculoId={v.id} recurso="sinistros" gestao={gestao} /><Registos veiculoId={v.id} recurso="multas" gestao={gestao} /></div>}
-          {tab === "docs" && <Documentos veiculoId={v.id} gestao={gestao} />}
+          {tab === "docs" && (instrutor ? <DocumentosBordo veiculoId={v.id} veiculoIds={[v.id]} /> : <Documentos veiculoId={v.id} gestao={gestao} />)}
         </>}
       </Carregar>
     </>

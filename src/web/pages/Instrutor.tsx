@@ -3,6 +3,7 @@ import type { Eu, Veiculo } from "../api";
 import { ErroApi } from "../api";
 import { Campo, num } from "../form";
 import { enviarOuGuardar } from "../lib/fila";
+import { DocumentosBordo } from "./DocumentosBordo";
 import { EscolherVeiculo, guardarRecente } from "./EscolherVeiculo";
 import { EscolherFotos, type FotoLocal } from "./Fotos";
 import { Carregar, ChipEstado, Foto, Icon, Matricula, useApi } from "../ui";
@@ -71,6 +72,7 @@ export function Inicio({ eu }: { eu: Eu }) {
           <div className="vbody"><div className="vmeta"><Matricula m={v.matricula} /><ChipEstado e={v.estado} /></div><b>{[v.marca, v.modelo].filter(Boolean).join(" ")}</b>
             <span className="muted">{v.usaHoras ? `${v.horasAtuais ?? "—"} h` : `${v.kmAtuais?.toLocaleString("pt-PT") ?? "—"} km`}{v.combustivel ? ` · ${v.combustivel}` : ""}</span></div>
         </a> : null)}
+        <DocumentosBordo veiculoId={v.id} veiculoIds={[...new Set([...(dados?.atribuidos.map((x) => x.id) ?? []), v.id])]} />
         <div className="card" style={{ display: "grid", gap: 10, maxWidth: 560 }}><b>Verificação diária do veículo</b><a className="btn primary big" href="#/verificacao"><Icon n="check" s={20} />Fazer verificação</a></div>
         <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", maxWidth: 560 }}><a className="btn big" href="#/abastecer"><Icon n="fuel" s={20} />Abastecer</a><a className="btn big" href="#/avaria"><Icon n="alert" s={20} />Avaria</a></div>
       </>}

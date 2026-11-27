@@ -4,16 +4,39 @@ export class ErroApi extends Error {
   }
 }
 
-/** Todos os pedidos levam X-Requested-With: a API recusa alteracoes sem este cabecalho (protecao contra outros sites). */
+// Respostas guardadas no telemovel (so o que o instrutor precisa para trabalhar sem rede).
+const CACHEAVEIS = [/^\/me$/, /^\/veiculos\/para-registo$/, /^\/documentos\?veiculoId=\d+$/];
+const chaveCache = (caminho: string) => `c:${caminho}`;
+const lerCache = <T>(caminho: string): T | null => { try { const x = localStorage.getItem(chaveCache(caminho)); return x ? (JSON.parse(x) as { d: T }).d : null; } catch { return null; } };
+/** Apaga tudo o que ficou guardado no telemovel (ao sair, para o proximo utilizador nao ver dados alheios). */
+export function limparCacheLocal() {
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith("c:") || k.startsWith("veiculo") ) localStorage.removeItem(k); } catch { /* sem armazenamento */ }
+}
+
+/** Todos os pedidos levam X-Requested-With: a API recusa alteracoes sem este cabecalho (protecao contra outros sites).
+ *  Sem rede, as leituras essenciais do instrutor respondem com a ultima copia guardada. */
 export async function api<T>(caminho: string, opcoes: { metodo?: string; corpo?: unknown } = {}): Promise<T> {
-  const r = await fetch(`/api${caminho}`, {
-    method: opcoes.metodo ?? "GET",
-    headers: { "content-type": "application/json", "x-requested-with": "frota" },
-    body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
-    credentials: "same-origin",
-  });
+  const metodo = opcoes.metodo ?? "GET";
+  const cacheavel = metodo === "GET" && CACHEAVEIS.some((r) => r.test(caminho));
+  let r: Response;
+  try {
+    r = await fetch(`/api${caminho}`, {
+      method: metodo,
+      headers: { "content-type": "application/json", "x-requested-with": "frota" },
+      body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
+      credentials: "same-origin",
+    });
+  } catch (e) {
+    const guardado = cacheavel ? lerCache<T>(caminho) : null;
+    if (guardado !== null) return guardado; // sem rede: usa a ultima copia
+    throw e;
+  }
   const dados = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!r.ok) throw new ErroApi(r.status, String(dados.erro ?? `Erro ${r.status}`), dados.codigo as string | undefined, dados);
+  if (!r.ok) {
+    if (r.status === 401) limparCacheLocal();
+    throw new ErroApi(r.status, String(dados.erro ?? `Erro ${r.status}`), dados.codigo as string | undefined, dados);
+  }
+  if (cacheavel) { try { localStorage.setItem(chaveCache(caminho), JSON.stringify({ em: Date.now(), d: dados })); } catch { /* sem espaco */ } }
   return dados as T;
 }
 

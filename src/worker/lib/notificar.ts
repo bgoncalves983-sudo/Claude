@@ -13,6 +13,22 @@ export async function emailsDaGestao(env: Env): Promise<string[]> {
   return l.filter((u) => u.a && u.m === "access" && (u.p === "gestor" || u.p === "admin")).map((u) => u.e);
 }
 
+export const emailConfigurado = (env: Env): boolean => !!env.RESEND_API_KEY;
+
+/** Envia um email de teste e devolve o motivo se falhar (domínio por verificar, chave errada, etc.). */
+export async function enviarTeste(env: Env, para: string): Promise<{ ok: boolean; detalhe: string }> {
+  if (!env.RESEND_API_KEY) return { ok: false, detalhe: "A chave do Resend (RESEND_API_KEY) ainda não está registada." };
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST", headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: env.ALERT_FROM, to: [para], subject: "Frota Radical: email de teste", html: "<p>Se está a ler isto, o envio de emails da aplicação está a funcionar.</p><p>Receberá aqui os avisos de avarias e de prazos a caducar.</p>" }),
+    });
+    if (r.ok) return { ok: true, detalhe: `Email enviado para ${para}.` };
+    const corpo = (await r.json().catch(() => ({}))) as { message?: string };
+    return { ok: false, detalhe: `O Resend recusou o envio (${r.status}): ${corpo.message ?? "sem detalhe"}` };
+  } catch (e) { return { ok: false, detalhe: `Não foi possível contactar o Resend: ${(e as Error).message}` }; }
+}
+
 async function enviar(env: Env, para: string[], assunto: string, html: string): Promise<boolean> {
   if (!env.RESEND_API_KEY || para.length === 0) return false;
   try {
@@ -51,4 +67,17 @@ export async function lembrarAvariasPendentes(env: Env): Promise<number> {
   const ok = await enviar(env, await emailsDaGestao(env), `Frota: ${results.length} avaria(s) por tratar há mais de 24 horas`, `<p>Avarias ainda sem resposta:</p><ul>${linhas}</ul><p><a href="${esc(enderecoGestao(env))}/#/avarias">Ver avarias</a></p>`);
   if (ok) for (const r of results) await env.DB.prepare("INSERT OR IGNORE INTO alerta_log (chave) VALUES (?1)").bind(`avaria-atraso:${r.id}`).run();
   return ok ? results.length : 0;
+}
+
+/** Avisa a gestao quando o gasoleo do deposito desce abaixo do minimo (no maximo uma vez por semana). */
+export async function avisarDepositoBaixo(env: Env, hoje: string): Promise<boolean> {
+  const d = await env.DB.prepare("SELECT d.id, d.nome, d.capacidade_l AS cap, d.nivel_minimo_l AS minimo, COALESCE((SELECT SUM(delta_litros) FROM deposito_movimento m WHERE m.deposito_id = d.id), 0) AS nivel FROM deposito d LIMIT 1").first<{ id: number; nome: string; cap: number; minimo: number; nivel: number }>();
+  if (!d || d.nivel >= d.minimo) return false;
+  const chave = `deposito-baixo:${d.id}:${Math.floor(Date.parse(hoje) / (7 * 86_400_000))}`;
+  const ja = await env.DB.prepare("SELECT 1 FROM alerta_log WHERE chave = ?1").bind(chave).first();
+  if (ja) return false;
+  const ok = await enviar(env, await emailsDaGestao(env), "Frota: gasóleo do depósito abaixo do mínimo",
+    `<p>O depósito <b>${esc(d.nome)}</b> tem <b>${Math.round(d.nivel)} l</b> (mínimo configurado: ${Math.round(d.minimo)} l).</p><p><a href="${esc(enderecoGestao(env))}/#/deposito">Ver depósito</a></p>`);
+  if (ok) await env.DB.prepare("INSERT OR IGNORE INTO alerta_log (chave) VALUES (?1)").bind(chave).run();
+  return ok;
 }

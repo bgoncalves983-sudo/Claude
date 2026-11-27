@@ -28,7 +28,8 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 | Conjuntos pesado + reboque: criar, trocar (tudo ou nada), terminar, histórico | feito |
 | Ecrã de auditoria (administradores) | feito |
 | Escolha de veículo do instrutor: ecrã completo com pesquisa, filtros, recentes, leitura de QR | feito |
-| Documentos a bordo disponíveis sem rede no telemóvel | por fazer |
+| Documentos a bordo (DUA, apólice) guardados no telemóvel; a aplicação do instrutor abre e funciona sem rede; sair apaga tudo | feito |
+| Email de teste e estado das ligações (Sistema); aviso de gasóleo baixo | feito; falta registar a chave do Resend (ver `docs/EMAILS.md`) |
 
 ## Desenvolvimento local
 
