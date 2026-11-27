@@ -18,14 +18,14 @@ export function QR() {
     <>
       <div className="noprint"><a href="#/veiculos" className="muted">← Veículos</a></div>
       <div className="noprint card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: 220 }}><b>{lista.length} etiqueta(s)</b><div className="muted">Imprima em vinil adesivo. O instrutor aponta a câmara e abre a ficha do veículo.</div></div>
+        <div style={{ flex: 1, minWidth: 220 }}><b>{lista.length} etiqueta(s)</b><div className="muted">Imprima em vinil adesivo. O instrutor aponta a câmara e o veículo fica escolhido na aplicação.</div></div>
         <button className="btn primary" onClick={() => window.print()}>Imprimir</button>
       </div>
       <Carregar erro={erro} dados={dados}>
         <div className="qrgrid">{lista.map((v) => (
           <div className="qrlabel" key={v.id}>
             <img src="/brand/logo-h-black.webp" alt="" /><Matricula m={v.matricula} />
-            <div dangerouslySetInnerHTML={{ __html: qrSvg(`${base}/#/veiculos/${v.id}`) }} />
+            <div dangerouslySetInnerHTML={{ __html: qrSvg(`${base}/#/v/${v.id}`) }} />
             <small>{[v.marca, v.modelo].filter(Boolean).join(" ")}</small>
           </div>))}</div>
       </Carregar>

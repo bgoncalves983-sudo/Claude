@@ -3,6 +3,7 @@ import type { Eu, Veiculo } from "../api";
 import { ErroApi } from "../api";
 import { Campo, num } from "../form";
 import { enviarOuGuardar } from "../lib/fila";
+import { EscolherVeiculo, guardarRecente } from "./EscolherVeiculo";
 import { EscolherFotos, type FotoLocal } from "./Fotos";
 import { Carregar, ChipEstado, Foto, Icon, Matricula, useApi } from "../ui";
 
@@ -18,40 +19,43 @@ function useEscolha() {
   const todos = d ? [...d.atribuidos, ...(d.podeEscolherOutro ? d.outros : [])] : [];
   const v = todos.find((x) => x.id === id) ?? d?.atribuidos[0] ?? null;
   const atribuido = !!v && !!d?.atribuidos.some((a) => a.id === v.id);
-  const escolher = (novo: number) => { setId(novo); try { localStorage.setItem(CHAVE, String(novo)); } catch { /* sem armazenamento: so nesta sessao */ } };
+  const escolher = (novo: number) => { setId(novo); guardarRecente(novo); try { localStorage.setItem(CHAVE, String(novo)); } catch { /* sem armazenamento: so nesta sessao */ } };
   return { ...r, v, atribuido, escolher };
 }
 type Escolha = ReturnType<typeof useEscolha>;
 
-/** Veiculo atual e painel para o trocar. Com 2 ou mais atribuidos so mostra os seus. */
+/** Barra com o veiculo atual. "Trocar" abre o ecra de escolha (pesquisa, filtros, recentes, QR). */
 function Seletor({ e }: { e: Escolha }) {
   const d = e.dados;
   const [aberto, setAberto] = useState(false);
-  const [q, setQ] = useState("");
   if (!d) return null;
-  const aberta = aberto || !e.v;
-  const outros = d.outros.filter((x) => `${x.matricula} ${x.marca ?? ""} ${x.modelo ?? ""}`.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
   const pode = d.atribuidos.length > 1 || d.podeEscolherOutro;
-  const escolher = (id: number) => { e.escolher(id); setAberto(false); setQ(""); };
+  const aberta = aberto || !e.v; // sem veiculo, abre logo a escolha
   return (
-    <div className="card form" style={{ maxWidth: 560 }}>
-      {e.v && <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-        <Matricula m={e.v.matricula} /><b style={{ flex: 1, minWidth: 120 }}>{[e.v.marca, e.v.modelo].filter(Boolean).join(" ")}</b>
-        {pode && <button type="button" className="btn" onClick={() => setAberto((x) => !x)}>{aberta ? "Fechar" : "Trocar veículo"}</button>}</div>}
-      {e.v && !e.atribuido && <div className="warnbox">Este veículo não está atribuído a si. O registo fica identificado para o responsável de frota.</div>}
-      {aberta && <>
-        {d.atribuidos.length >= 2 && <div className="note">Tem mais de um veículo atribuído. Escolha o que vai usar.</div>}
-        {d.atribuidos.length === 0 && <div className="note">Ainda não tem veículo atribuído. Escolha o veículo que vai usar.</div>}
-        {d.atribuidos.length === 1 && d.podeEscolherOutro && <div className="note">Vai usar outro veículo? Procure pela matrícula.</div>}
-        {d.atribuidos.length > 0 && <div className="rows">{d.atribuidos.map((x) => (
-          <button key={x.id} type="button" className="btn" style={{ justifyContent: "flex-start", gap: 10 }} aria-pressed={e.v?.id === x.id} onClick={() => escolher(x.id)}><Matricula m={x.matricula} />{[x.marca, x.modelo].filter(Boolean).join(" ")}<span className="chip ok" style={{ marginLeft: "auto" }}>Atribuído</span></button>))}</div>}
-        {d.podeEscolherOutro && <>
-          <label className="search"><span className="muted" aria-hidden="true">⌕&nbsp;</span><input value={q} onChange={(x) => setQ(x.target.value)} placeholder="Matrícula ou marca" aria-label="Procurar outro veículo" /></label>
-          <div className="rows">{outros.length === 0 && <span className="muted">Nenhum veículo encontrado.</span>}{outros.map((x) => (
-            <button key={x.id} type="button" className="btn" style={{ justifyContent: "flex-start", gap: 10 }} aria-pressed={e.v?.id === x.id} onClick={() => escolher(x.id)}><Matricula m={x.matricula} />{[x.marca, x.modelo].filter(Boolean).join(" ")}</button>))}</div></>}
-      </>}
-    </div>
+    <>
+      {e.v ? (
+        <div className="barra-veiculo">
+          <div className="t"><div><Matricula m={e.v.matricula} /></div><b>{[e.v.marca, e.v.modelo].filter(Boolean).join(" ")}</b>
+            {!e.atribuido && <span className="chip warn" style={{ justifySelf: "start" }}>Não atribuído a si</span>}</div>
+          {pode && <button type="button" className="btn" onClick={() => setAberto(true)}>Trocar</button>}
+        </div>
+      ) : null}
+      {aberta && pode && <EscolherVeiculo atribuidos={d.atribuidos} outros={d.outros} podeEscolherOutro={d.podeEscolherOutro} atual={e.v?.id ?? null} aoEscolher={(id) => { e.escolher(id); setAberto(false); }} fechar={() => setAberto(false)} />}
+      {!e.v && !pode && <div className="card" style={{ maxWidth: 560 }}>Não há veículos disponíveis. Fale com o responsável de frota.</div>}
+    </>
   );
+}
+
+/** Ligacao de um QR colado no veiculo: usa o veiculo (se a regra o permitir) e volta ao inicio. */
+export function UsarVeiculo({ id }: { id: number }) {
+  const { dados, erro } = useApi<Para>("/veiculos/para-registo");
+  useEffect(() => {
+    if (!dados) return;
+    const ok = [...dados.atribuidos, ...(dados.podeEscolherOutro ? dados.outros : [])].some((v) => v.id === id);
+    if (ok) { guardarRecente(id); try { localStorage.setItem(CHAVE, String(id)); } catch { /* sem armazenamento */ } location.hash = "#/"; }
+  }, [dados, id]);
+  const ok = dados && [...dados.atribuidos, ...(dados.podeEscolherOutro ? dados.outros : [])].some((v) => v.id === id);
+  return <Carregar erro={erro} dados={dados}>{!ok && <div className="card" style={{ maxWidth: 560 }}><h3>Este veículo não está disponível para si</h3><p className="muted" style={{ marginTop: 0 }}>Tem mais de um veículo atribuído, e só pode usar esses. Ou o veículo não está ativo.</p><a className="btn primary" href="#/">Voltar ao início</a></div>}</Carregar>;
 }
 
 export function Inicio({ eu }: { eu: Eu }) {

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { api, ErroApi, type Eu } from "./api";
 import { Login, MudarSenha, SessaoExpirada } from "./pages/Acesso";
 import { Ficha } from "./pages/Ficha";
-import { Abastecer, Avaria, Inicio, Verificacao } from "./pages/Instrutor";
+import { Abastecer, Avaria, Inicio, UsarVeiculo, Verificacao } from "./pages/Instrutor";
 import { Avarias, type ResumoAvarias } from "./pages/Avarias";
 import { Deposito } from "./pages/Deposito";
 import { FormVeiculo } from "./pages/FormVeiculo";
@@ -56,7 +56,8 @@ function Shell({ eu, sair }: { eu: Eu; sair: () => void }) {
 
   let pagina;
   if (instrutor) {
-    pagina = raiz === "veiculos" && r[1] ? <Ficha id={r[1]} eu={eu} /> : raiz === "abastecer" ? <Abastecer /> : raiz === "avaria" ? <Avaria /> : raiz === "verificacao" ? <Verificacao /> : <Inicio eu={eu} />;
+    pagina = raiz === "v" && r[1] ? <UsarVeiculo id={Number(r[1])} /> : raiz === "veiculos" && r[1] ? <Ficha id={r[1]} eu={eu} /> : raiz === "abastecer" ? <Abastecer /> : raiz === "avaria" ? <Avaria /> : raiz === "verificacao" ? <Verificacao /> : <Inicio eu={eu} />;
+  } else if (raiz === "v" && r[1]) { location.replace(`#/veiculos/${r[1]}`); pagina = null;
   } else if (raiz === "veiculos" && r[1] === "novo" && gestao) pagina = <FormVeiculo modo="novo" />;
   else if (raiz === "veiculos" && r[1] === "importar" && gestao) pagina = <Importar />;
   else if (raiz === "veiculos" && r[1] && r[2] === "editar" && gestao) pagina = <FormVeiculo modo="editar" id={r[1]} />;
