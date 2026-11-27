@@ -17,6 +17,8 @@ O plano completo está em [`docs/PLANO.md`](docs/PLANO.md).
 | Seguros, IUC, IPO, manutenção, combustível, avarias, sinistros, multas | feito (API e ecrãs) |
 | Depósito de gasóleo (entradas, contagem física, anulações, custo médio, autonomia) | feito |
 | Instrutor: início, abastecimento, avaria, verificação diária, com envio sem rede | feito |
+| Fotografias nas avarias e nos problemas da verificação (tirar ou escolher no telemóvel, até 5, também sem rede) | feito |
+| Instrutor com 0 ou 1 veículo atribuído pode registar noutro veículo; com 2 ou mais só nos seus | feito |
 | Documentos por veículo (PDF e imagens, versões, validade) | feito |
 | Alertas de prazos (incluindo multas) e painel | feito; falta ligar o envio de emails (Resend) |
 | Cópias de segurança semanais | feito |

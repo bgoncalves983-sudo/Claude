@@ -9,6 +9,7 @@ import { registarAuditoria } from "../lib/auditoria";
 import { custoMedio, obterDeposito } from "../lib/deposito";
 import { eUnico } from "../lib/erros";
 import { hojeLisboa } from "../lib/seguranca";
+import { fotosDasAvarias } from "./avariaFotos";
 import { idsVisiveis, podeRegistarNoutro } from "./veiculos";
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data no formato AAAA-MM-DD");
@@ -27,6 +28,8 @@ interface Recurso {
   preparar?: (d: Record<string, any>, ctx: { c: any; eu: Utilizador; veiculoId: number }) => Promise<Record<string, any> | { erro: string; estado?: number }>;
   /** Depois de gravar. */
   depois?: (linha: any, ctx: { c: any; eu: Utilizador; veiculoId: number }) => Promise<Record<string, unknown> | void>;
+  /** Acrescenta dados a cada linha da lista (ex.: fotografias de uma avaria). */
+  enriquecer?: (linhas: any[], eu: Utilizador, d1: D1Database) => Promise<any[]>;
   /** Campos que o instrutor nunca recebe (ex.: valores em euros). */
   ocultarAoInstrutor?: string[];
 }
@@ -57,8 +60,10 @@ function criarRouter(r: Recurso) {
 
   app.get("/", async (c) => {
     const vid = Number(c.req.param("veiculoId"));
-    const linhas = await drizzle(c.env.DB).select().from(r.tabela).where(eq(r.tabela.veiculoId, vid)).orderBy(r.ordem).limit(500);
-    return c.json(linhas.map((l) => limpar(l, c.get("user"))));
+    const eu = c.get("user");
+    let linhas = (await drizzle(c.env.DB).select().from(r.tabela).where(eq(r.tabela.veiculoId, vid)).orderBy(r.ordem).limit(500)) as any[];
+    if (r.enriquecer) linhas = await r.enriquecer(linhas, eu, c.env.DB);
+    return c.json(linhas.map((l) => limpar(l, eu)));
   });
 
   app.post("/", zValidator("json", r.criar), async (c) => {
@@ -200,6 +205,10 @@ export const avarias = criarRouter({
   criar: z.object({ descricao: z.string().trim().min(3).max(600), estado: z.enum(["reportada", "em_analise", "em_reparacao", "resolvida"]).optional(), clienteId: z.string().min(8).max(64).optional() }),
   // O instrutor so reporta: o estado e gerido pela gestao.
   preparar: async (d, { eu }) => ({ ...d, estado: eu.perfil === "instrutor" ? "reportada" : (d.estado ?? "reportada"), reportadoPor: eu.id }),
+  enriquecer: async (linhas, eu, d1) => {
+    const f = await fotosDasAvarias(d1, eu, linhas);
+    return linhas.map((l) => ({ ...l, fotos: f.get(l.id) ?? [] }));
+  },
 });
 
 export const verificacoes = criarRouter({
@@ -213,7 +222,7 @@ export const verificacoes = criarRouter({
   depois: async (l, { c, eu, veiculoId }) => {
     if (l.resultado !== "problema") return {};
     const falhas = (JSON.parse(l.itens) as { item: string; ok: boolean }[]).filter((i) => !i.ok).map((i) => i.item).join(", ");
-    await drizzle(c.env.DB).insert(avaria).values({ veiculoId, reportadoPor: eu.id, descricao: `Verificação diária: ${falhas}${l.notas ? `. ${l.notas}` : ""}`.slice(0, 600), estado: "reportada" });
+    await drizzle(c.env.DB).insert(avaria).values({ veiculoId, reportadoPor: eu.id, descricao: `Verificação diária: ${falhas}${l.notas ? `. ${l.notas}` : ""}`.slice(0, 600), estado: "reportada", clienteId: l.clienteId ? `v:${l.clienteId}` : null });
     return { avariaCriada: true };
   },
 });

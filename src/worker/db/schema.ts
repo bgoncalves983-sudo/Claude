@@ -374,3 +374,19 @@ export const atribuicao = sqliteTable(
   },
   (t) => [index("atribuicao_veiculo_idx").on(t.veiculoId)],
 );
+
+// Fotografias de uma avaria (tiradas pelo instrutor no telemovel). Verificacao com problema tambem anexa aqui.
+export const avariaFoto = sqliteTable(
+  "avaria_foto",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    avariaId: integer("avaria_id").notNull().references(() => avaria.id),
+    veiculoId: integer("veiculo_id").notNull().references(() => veiculo.id),
+    grandeKey: text("grande_key").notNull(),
+    miniKey: text("mini_key").notNull(),
+    utilizadorId: integer("utilizador_id").references(() => utilizador.id),
+    clienteId: text("cliente_id").unique(), // reenvio da mesma foto nao duplica
+    criadoEm: text("criado_em").notNull().default(agora),
+  },
+  (t) => [index("avaria_foto_avaria_idx").on(t.avariaId)],
+);

@@ -245,6 +245,37 @@ ok((await reg(vC)).s === 404, "com 2 atribuidos nao regista num terceiro veiculo
 ok((await reg(vA)).s === 201 && (await reg(vB)).s === 201, "mas regista em qualquer dos seus dois");
 ok((await pedir("/api/veiculos/para-registo", { gestor: G })).s === 403, "a gestao nao usa esta lista");
 
+console.log("Fotografias de avarias");
+const jp = (n) => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(n).fill(7)]);
+const fa = (g, m, extra) => { const f = new FormData(); f.append("grande", new Blob([g]), "g.jpg"); f.append("mini", new Blob([m]), "m.jpg"); for (const [k, v] of Object.entries(extra)) f.append(k, v); return f; };
+const subir = (vid, cookie, form, gestorH) => fetch(BASE + `/api/veiculos/${vid}/avaria-fotos`, { method: "POST", headers: { ...(cookie ? { cookie } : {}), ...(gestorH ? { "x-dev-user": gestorH } : {}), "x-requested-with": "frota" }, body: form });
+const avF = await I("avarias", { metodo: "POST", corpo: { descricao: "Pneu furado", clienteId: "avaria-cli-0001" } });
+const idAv = avF.j.registo.id;
+const f1 = await subir(v2, ck2b, fa(jp(2000), jp(300), { clienteId: "foto-cli-0001", avariaId: String(idAv) }));
+ok(f1.status === 201, "instrutor anexa uma foto a avaria que reportou");
+const f1b = await subir(v2, ck2b, fa(jp(2000), jp(300), { clienteId: "foto-cli-0001", avariaId: String(idAv) }));
+ok(f1b.status === 200 && (await f1b.json()).repetido === true, "reenviar a mesma foto nao duplica");
+ok((await subir(v2, ck2b, fa(jp(2000), jp(300), { clienteId: "foto-cli-0002", avariaClienteId: "avaria-cli-0001" }))).status === 201, "anexa tambem pelo identificador do telemovel (registo feito sem rede)");
+ok((await subir(v2, ck2b, fa(new TextEncoder().encode("<html>x</html>"), jp(300), { clienteId: "foto-cli-0003", avariaId: String(idAv) }))).status === 415, "ficheiro que nao e imagem e recusado");
+ok((await subir(v2, ck2b, fa(jp(2000), jp(300), { clienteId: "foto-cli-0004", avariaId: "999999" }))).status === 404, "avaria inexistente");
+ok((await subir(v2, ckA, fa(jp(2000), jp(300), { clienteId: "foto-cli-0005", avariaId: String(idAv) }))).status === 404, "outro instrutor nao anexa a avarias de um veiculo que nao e dele");
+const vv = await I("verificacoes", { metodo: "POST", corpo: { itens: [{ item: "Luzes", ok: false }], notas: "Farol fundido", clienteId: "verif-foto-0001" } });
+ok(vv.s === 201, "verificacao com problema criada");
+ok((await subir(v2, ck2b, fa(jp(2000), jp(300), { clienteId: "foto-cli-0006", avariaClienteId: "verif-foto-0001" }))).status === 201, "a foto da verificacao segue para a avaria criada");
+const listaG = (await b("avarias", { gestor: G })).j;
+ok(listaG.find((x) => x.id === idAv).fotos.length === 2, "a gestao ve as 2 fotos da avaria");
+ok(listaG.find((x) => /Farol/.test(x.descricao)).fotos.length === 1, "e a foto da verificacao, na avaria criada");
+ok((await I("avarias")).j.find((x) => x.id === idAv).fotos.length === 2, "o instrutor ve as fotos das avarias que reportou");
+const fid = listaG.find((x) => x.id === idAv).fotos[0];
+const dg = await fetch(BASE + `/api/avaria-fotos/${fid}?tam=mini`, { headers: { "x-dev-user": G } });
+ok(dg.status === 200 && /immutable/.test(dg.headers.get("cache-control") ?? "") && dg.headers.get("content-type") === "image/jpeg", "a gestao abre a miniatura (cache longa)");
+ok((await fetch(BASE + `/api/avaria-fotos/${fid}`, { headers: { cookie: ck2b } })).status === 200, "o instrutor abre a sua foto");
+ok((await fetch(BASE + `/api/avaria-fotos/${fid}`, { headers: { cookie: ckA } })).status === 404, "outro instrutor nao abre fotos alheias");
+ok((await fetch(BASE + `/api/avaria-fotos/${fid}`)).status === 401, "sem sessao nao abre");
+let ultimaFoto = 0;
+for (let i = 0; i < 6; i++) ultimaFoto = (await subir(v2, null, fa(jp(2000), jp(300), { clienteId: "foto-lim-000" + i, avariaId: String(idAv) }), G)).status;
+ok(ultimaFoto === 422, "limite de 6 fotografias por avaria");
+
 console.log("Copias de seguranca");
 const A = "admin@test.pt";
 ok((await pedir("/api/backups", { gestor: G })).s === 403, "um gestor nao ve as copias (so administradores)");

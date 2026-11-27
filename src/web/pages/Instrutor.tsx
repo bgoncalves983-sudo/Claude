@@ -3,6 +3,7 @@ import type { Eu, Veiculo } from "../api";
 import { ErroApi } from "../api";
 import { Campo, num } from "../form";
 import { enviarOuGuardar } from "../lib/fila";
+import { EscolherFotos, type FotoLocal } from "./Fotos";
 import { Carregar, ChipEstado, Foto, Icon, Matricula, useApi } from "../ui";
 
 interface Para { atribuidos: Veiculo[]; podeEscolherOutro: boolean; outros: Veiculo[] }
@@ -77,7 +78,7 @@ function Resultado({ pendente, ok }: { pendente: boolean; ok: string }) {
   return (
     <div className="card" role="status" style={{ display: "grid", gap: 12, maxWidth: 560 }}>
       <b>{pendente ? "Guardado no telemóvel" : ok}</b>
-      <span className="muted">{pendente ? "Sem rede neste momento. O registo segue sozinho assim que houver ligação." : ""}</span>
+      <span className="muted">{pendente ? "Sem rede neste momento. O registo (e as fotografias) seguem sozinhos assim que houver ligação." : ""}</span>
       <a className="btn primary" href="#/">Voltar ao início</a>
     </div>
   );
@@ -121,11 +122,12 @@ export function Avaria() {
   const e = useEscolha();
   const { dados, erro, v } = e;
   const [descricao, setDescricao] = useState("");
+  const [fotos, setFotos] = useState<FotoLocal[]>([]);
   const [res, setRes] = useState<{ pendente: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   async function enviar(ev: FormEvent) {
     ev.preventDefault(); if (!v) return; setErr(null);
-    try { const r = await enviarOuGuardar(`/veiculos/${v.id}/avarias`, { descricao }, `Avaria ${v.matricula}`); setRes({ pendente: r.pendente }); } catch (x) { setErr((x as ErroApi).message); }
+    try { const r = await enviarOuGuardar(`/veiculos/${v.id}/avarias`, { descricao }, `Avaria ${v.matricula}`, fotos); setRes({ pendente: r.pendente }); } catch (x) { setErr((x as ErroApi).message); }
   }
   if (res) return <Resultado pendente={res.pendente} ok="Avaria reportada ao responsável de frota." />;
   return (
@@ -133,7 +135,7 @@ export function Avaria() {
       <Seletor e={e} />
       {!v ? null : <form className="form" onSubmit={enviar} style={{ maxWidth: 560 }}>
         <div className="note"><Matricula m={v.matricula} /> {v.marca} {v.modelo}</div>
-        <div className="card form"><Campo id="d" label="O que se passa?" area obrig valor={descricao} onChange={setDescricao} largo /></div>
+        <div className="card form"><Campo id="d" label="O que se passa?" area obrig valor={descricao} onChange={setDescricao} largo /><b style={{ fontSize: 13 }}>Fotografias (opcional)</b><EscolherFotos fotos={fotos} onChange={setFotos} /></div>
         {err && <div className="errbox" role="alert">{err}</div>}
         <button className="btn primary big">Enviar ao responsável de frota</button>
       </form>}
@@ -147,6 +149,7 @@ export function Verificacao() {
   const { dados, erro, v } = e;
   const [estado, setEstado] = useState<Record<string, boolean>>(() => Object.fromEntries(ITENS.map((i) => [i, true])));
   const [notas, setNotas] = useState("");
+  const [fotos, setFotos] = useState<FotoLocal[]>([]);
   const [res, setRes] = useState<{ pendente: boolean; problema: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const falhas = ITENS.filter((i) => !estado[i]);
@@ -154,7 +157,7 @@ export function Verificacao() {
   async function enviar(ev: FormEvent) {
     ev.preventDefault(); if (!v) return; setErr(null);
     if (falhas.length && notas.trim().length < 3) return setErr("Descreva o problema nas notas.");
-    try { const r = await enviarOuGuardar(`/veiculos/${v.id}/verificacoes`, { itens: ITENS.map((i) => ({ item: i, ok: estado[i] })), notas: notas || null }, `Verificação ${v.matricula}`); setRes({ pendente: r.pendente, problema: falhas.length > 0 }); } catch (x) { setErr((x as ErroApi).message); }
+    try { const r = await enviarOuGuardar(`/veiculos/${v.id}/verificacoes`, { itens: ITENS.map((i) => ({ item: i, ok: estado[i] })), notas: notas || null }, `Verificação ${v.matricula}`, falhas.length ? fotos : []); setRes({ pendente: r.pendente, problema: falhas.length > 0 }); } catch (x) { setErr((x as ErroApi).message); }
   }
   if (res) return <Resultado pendente={res.pendente} ok={res.problema ? "Verificação enviada. Foi criada uma avaria para o responsável de frota." : "Verificação concluída. Bom trabalho!"} />;
   return (
@@ -165,7 +168,7 @@ export function Verificacao() {
         <div className="card">{ITENS.map((i) => (
           <div className="chk" key={i}><b>{i}</b>
             <div className="okno" role="group" aria-label={i}><button type="button" className="y" aria-pressed={estado[i]} onClick={() => setEstado((o) => ({ ...o, [i]: true }))}>OK</button><button type="button" className="n" aria-pressed={!estado[i]} onClick={() => setEstado((o) => ({ ...o, [i]: false }))}>Problema</button></div></div>))}</div>
-        {falhas.length > 0 && <div className="card form"><Campo id="n" label={`O que notou? (${falhas.join(", ")})`} area valor={notas} onChange={setNotas} largo /><div className="warnbox">Será criada uma avaria e o responsável de frota recebe um aviso.</div></div>}
+        {falhas.length > 0 && <div className="card form"><Campo id="n" label={`O que notou? (${falhas.join(", ")})`} area valor={notas} onChange={setNotas} largo /><b style={{ fontSize: 13 }}>Mostre o problema (fotografias, opcional)</b><EscolherFotos fotos={fotos} onChange={setFotos} /><div className="warnbox">Será criada uma avaria e o responsável de frota recebe um aviso.</div></div>}
         {err && <div className="errbox" role="alert">{err}</div>}
         <button className="btn primary big">Enviar verificação</button>
       </form>}

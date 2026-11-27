@@ -7,7 +7,7 @@ type R = Record<string, any>;
 interface Cp { k: string; t: string; tipo?: "text" | "number" | "date"; opcoes?: [string, string][]; area?: boolean; obrig?: boolean; passo?: string }
 interface Acao { rotulo: string; corpo: R; mostrar: (r: R) => boolean }
 interface Cfg {
-  titulo: string; vazio: string; campos: Cp[]; linha: (r: R) => { t: string; s: string; d?: ReactNode; chip?: ReactNode };
+  titulo: string; vazio: string; campos: Cp[]; linha: (r: R) => { t: string; s: string; d?: ReactNode; chip?: ReactNode; extra?: ReactNode };
   acoes?: Acao[]; podeApagar?: (r: R) => boolean;
 }
 const chip = (cls: string, t: string) => <span className={`chip ${cls}`}>{t}</span>;
@@ -37,7 +37,8 @@ export const RECURSOS: Record<string, Cfg> = {
     linha: (r) => ({ t: `${r.litros} l · ${fdata(r.data)}`, s: `${r.origem === "deposito" ? "Depósito do parque" : (r.posto ?? "Posto externo")}${r.km != null ? ` · ${r.km.toLocaleString("pt-PT")} km` : ""}`, d: r.valor != null ? eur(r.valor) : undefined }),
     podeApagar: (r) => r.origem !== "deposito" },
   avarias: { titulo: "Avarias", vazio: "Sem avarias registadas.", campos: [{ k: "descricao", t: "Descrição", area: true, obrig: true }],
-    linha: (r) => ({ t: r.descricao, s: `Reportada a ${fdata(r.dataReporte)}${r.dataResolucao ? ` · resolvida a ${fdata(r.dataResolucao)}` : ""}`, chip: chip(...ESTADOS_AVARIA[r.estado]) }),
+    linha: (r) => ({ t: r.descricao, s: `Reportada a ${fdata(r.dataReporte)}${r.dataResolucao ? ` · resolvida a ${fdata(r.dataResolucao)}` : ""}`, chip: chip(...ESTADOS_AVARIA[r.estado]),
+      extra: r.fotos?.length ? <div className="thumbs" style={{ marginTop: 8 }}>{r.fotos.map((id: number) => <a key={id} className="thumb" href={`/api/avaria-fotos/${id}`} target="_blank" rel="noopener"><img src={`/api/avaria-fotos/${id}?tam=mini`} alt="Fotografia da avaria" loading="lazy" /></a>)}</div> : undefined }),
     acoes: [{ rotulo: "Em análise", corpo: { estado: "em_analise" }, mostrar: (r) => r.estado === "reportada" }, { rotulo: "Em reparação", corpo: { estado: "em_reparacao" }, mostrar: (r) => r.estado === "reportada" || r.estado === "em_analise" }, { rotulo: "Resolvida", corpo: { estado: "resolvida" }, mostrar: (r) => r.estado !== "resolvida" }] },
   sinistros: { titulo: "Sinistros", vazio: "Sem sinistros registados.", campos: [
     { k: "data", t: "Data", tipo: "date", obrig: true }, { k: "descricao", t: "O que aconteceu", obrig: true, area: true }, { k: "participacao", t: "N.º da participação" }, { k: "valor", t: "Valor (€)", tipo: "number" }],
@@ -80,7 +81,7 @@ export function Registos({ veiculoId, recurso, gestao, podeCriar = gestao }: { v
         {dados?.length === 0 && <span className="muted">{cfg.vazio}</span>}
         <div className="rows">{dados?.map((r) => { const l = cfg.linha(r); return (
           <div className="row" key={r.id}>
-            <div><b>{l.t}</b><small>{l.s}</small>
+            <div><b>{l.t}</b><small>{l.s}</small>{l.extra}
               {gestao && (cfg.acoes?.some((a) => a.mostrar(r)) || cfg.podeApagar?.(r)) && <div className="actions" style={{ marginTop: 8 }}>
                 {cfg.acoes?.filter((a) => a.mostrar(r)).map((a) => <button key={a.rotulo} className="btn" onClick={() => acao(r.id, a.corpo)}>{a.rotulo}</button>)}
                 {cfg.podeApagar?.(r) && <button className="btn ghost" onClick={() => apagar(r.id)}>Apagar</button>}</div>}
